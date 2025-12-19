@@ -1,0 +1,349 @@
+Architectural Blueprint for Sovereign Agentic RAG Systems: Design, Implementation, and Security
+Executive Summary
+The prevailing paradigm in Artificial Intelligence (AI) development is shifting from static, stateless interaction models toward dynamic, persistent, and autonomous "Agentic" architectures. Organizations and developers are no longer satisfied with simple wrappers around Large Language Model (LLM) APIs; the contemporary requirement is for "Sovereign AI" systems—platforms that are self-hosted, deeply integrated with proprietary knowledge bases, capable of autonomous internet research, and secured by enterprise-grade infrastructure. This transition represents a move from "Chat to Data" toward "Agents acting on Data."
+This comprehensive technical report serves as a definitive implementation guide for constructing a custom AI chat interface with robust Retrieval-Augmented Generation (RAG) capabilities and autonomous internet access. It dissects the full application stack, categorizing the architecture into six critical planes: the User Interface Layer (UI), the Orchestration Layer (The Brain), the Knowledge Layer (Memory & Storage), the Tooling Layer (Internet & Action), the Contextual Memory Layer (Persistence), and the Security Infrastructure Layer (Identity & Network).
+Analysis of the current ecosystem reveals a convergence of specialized tools that enable this architecture. On the frontend, a dichotomy exists between rapid prototyping frameworks like Streamlit and Chainlit versus scalable production solutions using the Vercel AI SDK with Next.js.2 The orchestration layer is migrating from linear chains to graph-based state machines via LangGraph, enabling complex routing between local retrieval and web search.5 The knowledge layer demands a hybrid approach, combining the semantic understanding of vector databases like Qdrant with the precision of keyword search and reranking models like Cohere.7 Security is paramount, requiring "Zero Trust" networking implemented via Traefik reverse proxies and Keycloak identity management.9
+The report provides detailed architectural reasoning, comparative analyses of frameworks, and implementation strategies for building a system that is not only "smart" but verifiable, secure, and capable of deep, multi-step research tasks.
+1. The User Interface Layer: Framework Selection and Interaction Design
+The User Interface (UI) is the critical boundary where human intent is translated into computational action. In an Agentic RAG system, the UI must support capabilities far exceeding standard text exchange. It must handle multimodal inputs (PDFs, images), render streaming responses with intermediate "thought" steps, visualize citations, and manage complex authentication states.
+1.1 Comparative Analysis of Frontend Architectures
+The selection of a frontend framework dictates the velocity of development, the ceiling of customization, and the fidelity of the user experience. Four primary architectures dominate the current landscape: Streamlit, Chainlit, Open WebUI, and the Vercel AI SDK.
+1.1.1 Streamlit: The Data Science Prototyper
+Streamlit has established itself as the standard for rapid application development within the Python data science community. Its declarative syntax allows developers to spin up interactive web applications in minutes, but its underlying architecture presents specific challenges for complex conversational agents.
+? Execution Model: Streamlit operates on a "rerun" model. Every time a user interacts with a widget (e.g., enters a chat message), the entire Python script re-executes from top to bottom.11 While efficient for data visualization scripts, this model introduces friction for chat applications. Managing the state of a conversation—specifically one that involves asynchronous tool calls, streaming tokens, and intermediate status updates—requires careful manipulation of st.session_state to prevent the UI from resetting or losing context during the generation process.12
+? Chat Capabilities: Streamlit provides native chat primitives (st.chat_message, st.chat_input) and streaming support (st.write_stream).11 These features make it trivial to build a linear "User asks, AI answers" loop. However, rendering nested "Chain of Thought" (CoT) processes—where the user sees the agent "Planning," then "Searching," then "Reading"—is difficult to implement cleanly without custom components.
+? Document Visualization: For RAG applications, the ability to view source documents is essential. Streamlit requires third-party components like streamlit-pdf-viewer or iframe embedding to render PDFs alongside the chat. While functional, these often lack tight integration with the chat stream, such as clicking a citation in the text to scroll the PDF to the relevant page.14
+Verdict: Streamlit is optimal for scenarios where the chat is secondary to data visualization (e.g., an agent explaining a Pandas DataFrame displayed on screen) but may struggle with the complex, asynchronous state management required for a "Deep Research" agent.
+1.1.2 Chainlit: The Python-Native Chat Interface
+Chainlit is a framework specifically engineered for building conversational AI. Unlike Streamlit, it is designed from the ground up to handle the asynchronous, event-driven nature of LLM interactions.
+? Asynchronous Event Loop: Chainlit utilizes Python's asyncio capabilities natively. Developers define hooks like @cl.on_chat_start and @cl.on_message.17 This architecture aligns perfectly with orchestration libraries like LangChain and LangGraph, which rely heavily on async operations for parallel tool execution (e.g., searching the web while simultaneously querying a database).18
+? Chain of Thought Visualization: A distinguishing feature of Chainlit is its built-in support for "Steps." When an agent executes a sub-task (e.g., "Querying Tavily"), this action can be wrapped in a cl.Step object. The UI renders these as nested, collapsible elements within the message stream.19 This provides the transparency required for deep research agents; users can verify that the agent is actually searching the internet rather than hallucinating an answer.
+? Multimodal and Auth: Chainlit supports spontaneous file uploads, audio input, and image rendering out of the box.21 Furthermore, it includes a built-in authentication layer supporting OAuth providers (Google, GitHub) and simple password protection, drastically reducing the time to secure an internal tool.2
+Verdict: Chainlit is the superior choice for Python-centric teams building internal research tools or rapid Proof-of-Concepts (PoCs) where "Chain of Thought" visibility is a priority.
+1.1.3 Open WebUI: The "ChatGPT" Experience
+Open WebUI (formerly Ollama WebUI) represents a different approach: it is a fully-featured, standalone application rather than a development framework. It is designed to be a self-hosted alternative to ChatGPT, connecting to various inference backends like Ollama, vLLM, or OpenAI.3
+? Production Features: Open WebUI comes with enterprise-grade features pre-built. This includes Role-Based Access Control (RBAC), multi-user management, and chat history retention.23 For organizations needing to deploy a secure interface for hundreds of users without writing frontend code, this is a compelling option.
+? RAG Pipeline: It includes an integrated RAG pipeline that handles document uploads, chunking, and vectorization automatically. However, this convenience comes at the cost of flexibility. Customizing the chunking strategy for specific domain documents (e.g., complex legal contracts or engineering schematics) is significantly more difficult than in a custom code solution.25
+? Extensibility: While Open WebUI supports plugins and "functions," deeply integrated custom logic—such as a complex LangGraph agent that requires user approval steps in the UI—can be challenging to implement compared to a bespoke frontend.25
+Verdict: Open WebUI is best for providing a general-purpose "ChatGPT" interface to employees but lacks the granular control needed for specialized, high-complexity agentic workflows.
+1.1.4 Vercel AI SDK: The Modern Web Standard
+For consumer-facing applications or high-fidelity enterprise tools, the Vercel AI SDK (typically paired with Next.js) is the industry standard. It decouples the frontend (React/TypeScript) from the backend (Python/FastAPI/Node), communicating via standardized streaming protocols.
+? Data Stream Protocol: The Vercel AI SDK introduces a specialized protocol for streaming data. Instead of sending a raw text stream, the backend sends a sequence of "chunks" that can represent text, tool calls, or arbitrary JSON data.27 This allows the backend to push a "Citation" object immediately after retrieval, which the frontend can render as a UI component (e.g., a hoverable source link) even before the LLM begins generating the answer text.4
+? Generative UI: The SDK supports "Generative UI," a paradigm where the LLM can decide to render rich React components instead of text. For a research agent, this could mean rendering a "Research Plan" card with checkboxes that check off as the agent completes tasks, providing a highly interactive user experience.29
+? Python Integration: While originally Node-centric, the SDK now fully supports Python backends via FastAPI. This enables developers to build the "Brain" of the agent in Python (using LangGraph/LlamaIndex) while maintaining the reactive, polished "Face" of a modern React application.4
+Verdict: The Vercel AI SDK offers the highest ceiling for user experience and scalability, making it the recommended choice for production-grade "Deep Research" applications.
+1.2 Comparison of Frontend Frameworks
+The following table summarizes the key architectural differences between the discussed frameworks, highlighting their suitability for different development stages and requirements.
+Feature CategoryStreamlitChainlitOpen WebUIVercel AI SDKPrimary Use CaseData Visualization & PrototypingPython-Native Chat AppsTurnkey Enterprise ChatCustom Production AppsTech StackPure PythonPure PythonPython/JS (Containerized)React/Next.js + Python/NodeState HandlingSynchronous Rerun (Complex)Async Event Loop (Simple)Managed Internal DBClient-Side Hooks (useChat)StreamingBasic Text (write_stream)Text + Nested Steps (CoT)Full Markdown StreamingData Stream Protocol (Text + Data)CustomizationPython Components (Limited)Python Config (Medium)Plugin System (Low)Full React Code (Very High)Auth & SecurityExternal Add-on RequiredBuilt-in OAuth/PassBuilt-in RBAC/SSOCustom / NextAuth / ClerkDeploymentSingle ContainerSingle ContainerDocker Compose StackSeparated Frontend/Backend1.3 Implementation Strategy: The Hybrid Architecture
+To satisfy the requirement for a "Deep Research" agent with a knowledge base, a hybrid architecture is recommended. This involves using the Vercel AI SDK for the frontend to ensure a responsive, citation-rich user experience, communicating with a FastAPI backend that houses the LangGraph orchestration logic.
+1.3.1 Implementing the Data Stream Protocol in Python
+The core of this architecture is the communication channel. The backend must stream data in a format the Vercel client understands. The Data Stream Protocol expects chunks formatted with a type prefix (e.g., 0: for text, 2: for tool calls, 8: for custom data).
+Backend Logic (FastAPI):
+The FastAPI endpoint uses StreamingResponse to yield these chunks. When the LangGraph agent performs a retrieval, the backend immediately yields a "Data" chunk containing the citation metadata.
+
+Python
+
+
+# Conceptual implementation of Data Stream Protocol in FastAPI
+from fastapi.responses import StreamingResponse
+import json
+
+async def stream_generator(user_message):
+    # 1. Yield initial text chunk
+    yield '0:"Analyzing request..."\n'
+    
+    # 2. Agent performs retrieval (simulated)
+    # The 'docs' object would come from the Qdrant retrieval step
+    docs =
+    
+    # 3. Yield custom data chunk (Type 8 is often used for data)
+    # This sends the citations to the frontend BEFORE the answer is generated
+    yield f'8:{json.dumps(docs)}\n'
+    
+    # 4. Stream the LLM generation
+    async for token in llm_engine.stream(user_message):
+        yield f'0:{json.dumps(token)}\n'
+
+@app.post("/api/chat")
+async def chat_handler(request: Request):
+    return StreamingResponse(stream_generator(request), media_type="text/event-stream")
+
+1.3.2 Frontend Rendering of Citations
+On the Next.js side, the useChat hook consumes this stream. The data property returned by the hook aggregates the custom data chunks sent by the backend.
+? Citation Component: A custom React component <CitationDisplay /> listens to the data array. When the backend pushes the citation objects, this component renders them as interactive cards or footnotes.
+? PDF Integration: If the citation points to a file in the Knowledge Base (e.g., s3://...), the frontend component generates a secure link to a file viewer route (e.g., /api/files/view?id=...). This allows the user to click a citation [1] and open the specific PDF page in a side panel, fulfilling the requirement for a "knowledge base" interface.28
+2. The Orchestration Layer: The Cognitive Engine
+The "Brain" of the AI chat is the orchestration layer. This layer is responsible for maintaining the state of the conversation, interpreting user intent, and deciding whether to answer from memory, query the internal knowledge base, or search the open internet.
+2.1 The Architectural Shift: From Chains to Graphs
+Early LLM applications relied on "Chains" (e.g., LangChain's RetrievalQAChain), which executed a rigid sequence of steps: Retrieve -> Augment -> Generate. While simple, this architecture is brittle. If the retrieval step returns irrelevant documents, the chain proceeds blindly, forcing the LLM to answer with poor context, often leading to hallucinations.
+LangGraph represents the evolution to "Agentic" workflows modeled as graphs. A graph consists of Nodes (functional units like "Search" or "Generate") and Edges (transition logic). Crucially, graphs support Cycles, enabling the agent to loop back, retry actions, or refine its plan based on new information—a fundamental requirement for reasoning.5
+2.2 Designing the Reasoning Loop
+To build a "Deep Research" agent, the orchestration logic must implement specific patterns that mimic human research methodology. Two patterns are essential: Conditional Routing and Self-Correction.
+2.2.1 The Router Pattern (Conditional Logic)
+A sovereign agent must be efficient. Not every query requires an expensive web search or a vector database lookup. A "Router" node serves as the traffic controller, analyzing the user's input to determine the appropriate data source.33
+? Vector Store Route: Triggered by queries about internal data (e.g., "What does the Q3 report say about revenue?"). The agent routes to the RAG pipeline.
+? Web Search Route: Triggered by queries requiring real-time data or external knowledge (e.g., "What are the latest features of LangGraph?" or "Current stock price of NVIDIA"). The agent routes to the Tavily/Search tool.
+? Direct Answer Route: Triggered by conversational or general knowledge queries (e.g., "Draft a python function to sort a list"). The agent responds directly using its pre-trained weights, saving tokens and latency.
+Implementation: This logic is implemented as a "Conditional Edge" in LangGraph. A lightweight LLM call classifies the query and returns a routing signal (e.g., "web_search", "vector_store", or "generate"), which dictates the next node in the graph.6
+2.2.2 The Self-Reflective (Corrective) RAG Pattern
+High-quality research requires validation. The Corrective RAG (CRAG) pattern introduces a quality control step into the retrieval process.33
+1. Retrieve: The agent fetches documents from the Vector Store (Qdrant).
+2. Grade: A specialized "Grader Node" evaluates the retrieved documents against the user's query. It asks: "Does this document contain information relevant to the question?".35
+3. Decide:
+? Relevant: If the documents are graded as relevant, the graph transitions to the "Generate" node to synthesize the answer.
+? Irrelevant/Ambiguous: If the documents are poor (e.g., low similarity scores or irrelevant content), the graph transitions to the Web Search node. This fallback mechanism ensures that the agent supplements gaps in its internal knowledge with external data, significantly reducing hallucinations.35
+2.3 State Management and Persistence
+In a stateful agent, memory is not just a list of messages. LangGraph defines the State as a structured schema (typically a Pydantic model or TypedDict) that persists across the graph's execution.37
+The Agent State Schema:
+
+Python
+
+
+class AgentState(TypedDict):
+    messages: Annotated[list[AnyMessage], operator.add]  # Chat History
+    question: str                                        # Current Query
+    documents: list                            # Retrieved Context
+    web_search_needed: bool                              # Flag for Routing
+    research_plan: list[str]                             # For Deep Research
+    generation: str                                      # Final Answer
+
+? Persistence: To enable long-running research tasks or multi-session conversations, LangGraph uses Checkpointers. A checkpointer (e.g., AsyncSqliteSaver or a Postgres-backed implementation) serializes the state after every node execution.
+? Time Travel: This architecture allows for "Time Travel." If an agent goes down a wrong research path, a developer (or the user) can "rewind" the state to a previous node, modify the plan, and resume execution from that point. This is critical for debugging complex agent behaviors.39
+2.4 Human-in-the-Loop (HITL) Workflows
+For sensitive or costly research tasks, complete autonomy may not be desirable. LangGraph supports HITL workflows via Interrupts.
+? The Workflow: The agent generates a "Research Plan" (Node A). The graph is configured with interrupt_before=["execute_research"].
+? User Interaction: The execution pauses. The UI displays the proposed plan to the user. The user can edit the plan (e.g., remove a specific search term) or approve it.
+? Resumption: Once approved, the state is updated with the user's modifications, and the graph resumes execution at Node B. This collaboration ensures the agent remains aligned with the user's goals.32
+Section 3: The Knowledge Layer (Memory & Storage)
+To fulfill the requirement of "access to a knowledge base," the system must possess a robust infrastructure for storing, indexing, and retrieving proprietary information. This "Knowledge Layer" is built upon vector databases, object storage, and advanced retrieval algorithms.
+3.1 The Dual-Store Architecture
+A common misconception is that vector databases store files. In reality, they store embeddings (lists of numbers) and small metadata payloads. Storing entire PDFs or images in a vector database is inefficient and costly. Therefore, a robust sovereign architecture utilizes a Dual-Store Strategy.
+3.1.1 Vector Database: Qdrant
+Qdrant is the recommended vector engine for this system. It acts as the "Index" of the knowledge base.
+? Cloud-Native & Performance: Qdrant is written in Rust, offering exceptional performance and low resource overhead. It is designed to run efficiently in Docker containers, making it ideal for self-hosted sovereign stacks.42
+? Payload Filtering: Qdrant excels at metadata filtering. In a system with multiple users or projects, documents must be segregated. Qdrant allows tagging vectors with a user_id or collection_id. Critical for security, Qdrant applies these filters during the graph traversal (HNSW), ensuring that a user never retrieves vectors belonging to another user, enforcing strict data isolation at the database level.23
+3.1.2 Object Storage: MinIO
+MinIO serves as the "Warehouse" of the knowledge base. It is a high-performance, S3-compatible object storage server.
+? Workflow: When a user uploads a document (e.g., annual_report.pdf), the FastAPI backend streams the file directly to MinIO buckets (e.g., s3://knowledge-base/{user_id}/{filename}).
+? Linking: The ingestion pipeline (discussed below) extracts the text for embedding but retains the S3 URI (s3://...). This URI is stored in the Qdrant payload. When the UI needs to display the source document, it generates a presigned URL from MinIO, allowing the browser to render the original PDF securely.45
+3.2 The Ingestion Pipeline
+The quality of a RAG system is determined by the quality of its data ingestion. Simply splitting text by character count is insufficient for "Deep Research."
+1. Extraction: Tools like Unstructured.io or LlamaParse are used to extract text. These tools are capable of parsing complex layouts, identifying headers, and extracting tables as structured HTML/Markdown rather than garbled text.25
+2. Semantic Chunking: Instead of arbitrary fixed-size chunks (e.g., 500 characters), "Semantic Chunking" techniques are employed. This method uses an embedding model to identify breakpoints where the topic of the text changes, ensuring that each chunk represents a coherent concept. This improves retrieval accuracy significantly.
+3. Embedding: The chunks are converted into vectors using an embedding model. For a sovereign stack, local models (e.g., nomic-embed-text) or private API deployments (Azure OpenAI Embeddings) are preferred to ensure data privacy.47
+4. Upsert: The vectors, along with metadata (Source URL, Page Number, Author), are written to Qdrant.
+3.3 Advanced Retrieval: Hybrid Search and Reranking
+Standard vector search (Cosine Similarity) has a weakness: it struggles with exact keyword matches (e.g., specific acronyms, product SKUs, or names). To create a truly professional research tool, Hybrid Search and Reranking are mandatory.
+3.3.1 Hybrid Search (Dense + Sparse)
+Hybrid search combines two retrieval methodologies:
+? Dense Retrieval: Uses embeddings to find semantically related content (e.g., matching "feline" to "cat").
+? Sparse Retrieval (BM25): Uses keyword frequency (like Lucene/Elasticsearch) to find exact text matches.
+? Fusion: Qdrant supports hybrid search natively. It performs both searches and fuses the results using Reciprocal Rank Fusion (RRF). This ensures that the agent finds documents that are both conceptually relevant and contain the specific terms the user queried.7
+3.3.2 Reranking: The Precision Filter
+Retrieving the top 20 documents often yields a mix of high-quality and marginally relevant results. Passing all 20 to the LLM can "pollute" the context window, confusing the model.
+? The Reranker: A Cross-Encoder model (e.g., Cohere Rerank or a local BGE-Reranker) acts as a judge. It takes the query and the 20 retrieved documents and scores them based on how well they answer the specific question.
+? The Result: The system keeps only the top 5 highest-scored documents. Research indicates this step can improve the retrieval accuracy of RAG systems by up to 67%, transforming a "good" chat into an "expert" one.8
+Section 4: The Tooling Layer (Internet Access & Research)
+To transform a chatbot into a research assistant, it requires "Internet Access." This is not merely about connecting to the web, but about equipping the agent with tools to search, navigate, and comprehend the vast, unstructured data of the internet.
+4.1 The Search Interface: Tavily vs. Traditional APIs
+Standard search APIs (Google Custom Search, Bing) are designed for humans; they return lists of blue links and short snippets. They do not provide the page content. For an AI agent, using these APIs requires a complex two-step process: (1) Search for URLs, (2) Scrape each URL to read the content. This is slow and error-prone due to anti-bot protections.
+Tavily has emerged as the standard search tool for AI agents. It acts as a "Search-as-a-Service" specifically optimized for LLMs.
+? Context Extraction: A single API call to Tavily returns not just links, but the parsed and cleaned content of the top search results. It filters out navigation bars, ads, and footers, returning only the core text relevant to the query.51
+? Token Efficiency: By providing pre-cleaned text, Tavily reduces the number of tokens the LLM must process, lowering costs and latency while improving comprehension.53
+4.2 Deep Web Scraping: Firecrawl
+For "Deep Research" tasks where the user provides a specific, complex URL (e.g., "Read the documentation at this link and summarize the API authentication"), a search API is insufficient. The agent needs a dedicated scraper.
+Firecrawl is a tool designed to turn websites into Markdown—the native language of LLMs.
+? Handling Complexity: Unlike simple requests.get() calls, Firecrawl handles dynamic JavaScript rendering (SPA), ensuring that content generated by React/Vue frameworks is captured.
+? Crawling Depth: It supports recursive crawling (e.g., "Crawl this page and all sub-pages"), allowing the agent to ingest an entire documentation site or blog into its context window or vector store in a single operation.54
+? Self-Hosted Option: For sovereign implementations, Crawl4AI offers an open-source alternative that can be self-hosted within the Docker stack, providing similar capabilities without external API dependencies.56
+4.3 Headless Browsing: Agentic "Hands"
+Some research tasks require interaction: clicking "Next Page," logging into a portal, or bypassing complex CAPTCHAs.
+? Browserbase / Headless Playwright: These tools provide a headless browser environment that the agent can control via code. The agent can "see" the page (often via accessibility trees or screenshots processed by Vision models), locate elements, and simulate clicks/keystrokes. This gives the agent "hands" on the web, enabling it to navigate deep web databases that are inaccessible to standard crawlers.57
+4.4 The Citation Architecture
+A critical requirement for a research agent is transparency. Every claim made by the AI must be backed by a source.
+? Data Lineage: When Tavily or Firecrawl returns data, the source URL and Title must be preserved in the LangGraph state.
+? Prompting: The System Prompt must explicitly instruct the LLM: "Cite your sources using the format ``. Do not include information not supported by the provided context."
+? UI Integration: The frontend (Vercel AI SDK/Chainlit) parses these citation markers. The citation object (containing the URL) is linked to the marker, creating an interactive reference system similar to Perplexity or academic papers.31
+Section 5: Contextual Memory Layer
+A defining characteristic of an "Intelligent" agent is Memory. A truly useful assistant must distinguish between the immediate conversation context (Short-Term) and the enduring facts about the user and the world (Long-Term).
+5.1 Short-Term Persistence (Thread Memory)
+Short-term memory allows a user to have a coherent multi-turn conversation. It enables the agent to resolve references like "Expand on the second point" or "What did you mean by that?".
+? LangGraph Checkpointers: LangGraph manages this via Checkpointers. A checkpointer (e.g., AsyncSqliteSaver for development or a Postgres-backed implementation for production) serializes the entire state of the graph (messages, variables, tool outputs) after every step.40
+? Thread ID: The frontend generates a unique thread_id for each conversation session. This ID is passed in the metadata of every API request. The backend uses this ID to load the serialized state from the database, effectively "resuming" the agent's brain exactly where it left off. This architecture allows users to pause a research task and return to it days later.39
+5.2 Long-Term Semantic Memory (User Profile)
+Long-term memory enables the agent to learn about the user over time (e.g., "The user is a Python developer," "The user is interested in renewable energy"). This prevents the agent from asking repetitive questions.
+? Memory Consolidation: A background process (or a specialized node in the graph) analyzes completed conversations. It extracts key entities and preferences using a summarization prompt.
+? Vectorized Storage: These extracted facts are stored in a dedicated "Memory" collection in Qdrant. Unlike the Knowledge Base (which stores external documents), this collection stores internal knowledge about the user.60
+? Contextual Injection: When a new conversation starts, the agent performs a similarity search against this Memory collection using the user's new query. Relevant memories are retrieved and injected into the System Prompt (e.g., "Context: The user prefers code examples in Python").
+? Zep: For high-scale enterprise deployments, Zep serves as a dedicated Memory Layer service. It sits aside the chat stream, automatically classifying intents, extracting entities, and organizing them into a structured long-term store, replacing manual memory implementation efforts.62
+Section 6: Security Infrastructure Layer
+Building a "Sovereign" AI stack implies taking responsibility for security. We cannot rely on the implicit security of a SaaS provider. The architecture must implement a "Zero Trust" model where every component is authenticated and isolated.
+6.1 Identity and Access Management (IAM): Keycloak
+Keycloak is the industry standard for open-source Identity and Access Management. It allows the system to own its user data completely, avoiding dependencies on third-party auth providers like Auth0.
+? OIDC Provider: Keycloak acts as the OpenID Connect (OIDC) provider, handling user registration, login, and password management. It supports multi-factor authentication (MFA) and Single Sign-On (SSO) protocols, enabling integration with enterprise directories (LDAP/AD).64
+? Realms: Keycloak uses "Realms" to isolate tenants. You can create a dedicated realm for the AI Chat application, defining specific roles (e.g., researcher, admin) that map to permissions within the application.65
+6.2 The Reverse Proxy: Traefik & ForwardAuth
+Traefik serves as the unified entry point (Edge Router) for the entire stack. It handles SSL termination (Let's Encrypt), load balancing, and crucially, authentication enforcement via the ForwardAuth pattern.
+? The ForwardAuth Workflow:
+1. Interception: A request hits Traefik (e.g., POST /api/chat). Traefik checks its middleware configuration and sees that this route is protected.
+2. Delegation: Traefik pauses the request and makes a sub-request to an authentication service (typically oauth2-proxy connected to Keycloak).
+3. Verification: oauth2-proxy checks the user's session cookies.
+? If Valid: It returns HTTP 200 OK and injects user identity headers (e.g., X-Auth-Request-Email, X-Auth-Request-User).
+? If Invalid: It returns HTTP 401 or redirects the user to the Keycloak login page.
+4. Forwarding: Upon receiving 200 OK, Traefik forwards the original request—now enriched with the identity headers—to the FastAPI backend.
+? Benefit: The backend service (FastAPI) does not need to handle OAuth flows, token refresh logic, or cookie parsing. It simply trusts the headers provided by Traefik (guaranteed by the internal network isolation), greatly simplifying the application code.10
+6.3 Network Isolation and Docker Security
+The infrastructure is deployed using Docker Compose, utilizing network segmentation to enforce the principle of least privilege.
+? Public Network (frontend-net): This network is exposed to the internet (via ports 80/443). Only Traefik and the Frontend container reside here.
+? Private Network (backend-net): This network is strictly internal. It contains the FastAPI Backend, Qdrant, MinIO, and Redis. These containers do not expose ports to the host machine.
+? Security Posture: This architecture ensures that even if the frontend is compromised, an attacker cannot directly access the vector database or object store. Access is strictly mediated by the backend API, which enforces the business logic and access controls.67
+Section 7: Deployment Configuration and Operations
+7.1 Docker Compose Architecture
+The entire sovereign stack is defined in a single, reproducible docker-compose.yml file. This "Infrastructure as Code" approach ensures consistent deployments across development and production environments.
+
+YAML
+
+
+version: '3.8'
+
+services:
+  # --- Edge Router & Security ---
+  traefik:
+    image: traefik:v3.0
+    ports: ["80:80", "443:443"]
+    command: 
+      - "--providers.docker=true"
+      - "--entrypoints.websecure.address=:443"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks: [public-net]
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    environment:
+      KC_DB: postgres
+      KC_HOSTNAME: auth.example.com
+    networks: [public-net, private-net]
+    depends_on: [postgres]
+
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy
+    command: --provider=keycloak --email-domain=*
+    networks: [public-net]
+
+  # --- Application Layer ---
+  backend:
+    build:./backend
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+      - MINIO_URL=http://minio:9000
+    networks: [private-net]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`api.example.com`)"
+      - "traefik.http.routers.api.middlewares=auth-middleware"
+
+  frontend:
+    build:./frontend
+    networks: [public-net]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.web.rule=Host(`chat.example.com`)"
+
+  # --- Data Layer ---
+  qdrant:
+    image: qdrant/qdrant
+    volumes: [qdrant_data:/qdrant/storage]
+    networks: [private-net]
+
+  minio:
+    image: minio/minio
+    command: server /data
+    networks: [private-net]
+
+  redis:
+    image: redis:alpine
+    networks: [private-net]
+
+networks:
+  public-net:
+  private-net:
+    internal: true
+
+volumes:
+  qdrant_data:
+
+7.2 Operational Scalability
+? Async Processing: The use of Python's async/await in FastAPI is critical. LLM requests are I/O bound (waiting for tokens from the model). Async allows a single Python process to handle hundreds of concurrent chat streams efficiently.4
+? Task Queues: Heavy operations—such as ingesting a 500-page PDF—should never block the HTTP request loop. These tasks should be offloaded to a background worker queue (e.g., Celery or ARQ backed by Redis). The user receives a "Processing..." status update via the streaming protocol, and the system notifies them when the knowledge base update is complete.43
+Conclusion
+Creating a sovereign AI chat system with deep research capabilities is a sophisticated engineering endeavor that transcends simple script writing. It requires orchestrating a symphony of specialized components: LangGraph for reasoning, Qdrant for memory, Tavily for vision, and Keycloak for security.
+The architecture detailed in this report offers a robust, scalable, and secure foundation for such a system. It empowers organizations to leverage the transformative potential of Agentic AI while maintaining absolute control over their proprietary data and infrastructure. By moving beyond "Chat to Data" and building "Agents acting on Data," developers can unlock the next generation of automated research and knowledge work.
+Works cited
+1. The 3 Best Python Frameworks To Build UIs for AI Apps - GetStream.io, accessed December 11, 2025, https://getstream.io/blog/ai-chat-ui-tools/
+2. Building Your ChatGPT-like App with Open Source Libraries: A Comprehensive Guide, accessed December 11, 2025, https://www.scaleway.com/en/blog/building-your-chatgpt-like-app-with-open-source-libraries-a-comprehensive-guide/
+3. AI SDK Python Streaming - Vercel, accessed December 11, 2025, https://vercel.com/templates/next.js/ai-sdk-python-streaming
+4. LangChain vs LangGraph: How to Choose the Right AI Framework! - DEV Community, accessed December 11, 2025, https://dev.to/pavanbelagatti/langchain-vs-langgraph-how-to-choose-the-right-ai-framework-497h
+5. Self-Reflective RAG with LangGraph - LangChain Blog, accessed December 11, 2025, https://blog.langchain.com/agentic-rag-with-langgraph/
+6. Integrating Qdrant and LangChain for Advanced Vector Similarity Search, accessed December 11, 2025, https://qdrant.tech/blog/using-qdrant-and-langchain/
+7. Top 7 Rerankers for RAG - Analytics Vidhya, accessed December 11, 2025, https://www.analyticsvidhya.com/blog/2025/06/top-rerankers-for-rag/
+8. The Simplest Way to Make MinIO Traefik Work Like It Should, accessed December 11, 2025, https://hoop.dev/blog/the-simplest-way-to-make-minio-traefik-work-like-it-should/
+9. Securing Microservices with Keycloak and Traefik AuthProxy, accessed December 11, 2025, https://labs64.io/blog/2025/08/07/securing-microservices-with-keycloak-and-traefik-authproxy/
+10. Build a basic LLM chat app - Streamlit Docs, accessed December 11, 2025, https://docs.streamlit.io/develop/tutorials/chat-and-llm-apps/build-conversational-apps
+11. How to visualize sources in Streamlit Chat App, accessed December 11, 2025, https://discuss.streamlit.io/t/how-to-visualize-sources-in-streamlit-chat-app/87209
+12. Chat elements - Streamlit Docs, accessed December 11, 2025, https://docs.streamlit.io/develop/api-reference/chat
+13. Streamlit: How to add proper citation with source content to chat message - Stack Overflow, accessed December 11, 2025, https://stackoverflow.com/questions/77455300/streamlit-how-to-add-proper-citation-with-source-content-to-chat-message
+14. streamlit-pdf-viewer - PyPI, accessed December 11, 2025, https://pypi.org/project/streamlit-pdf-viewer/
+15. Enhancing PDF Interaction with Streamlit for Retrieval-Augmented Generation (RAG) through Highlighting and Annotation | by Tom Odhiambo | Medium, accessed December 11, 2025, https://medium.com/@odhitom09/enhancing-pdf-interaction-with-streamlit-for-retrieval-augmented-generation-rag-through-0a3826a450bf
+16. Text - Chainlit, accessed December 11, 2025, https://chainlit-43.mintlify.app/api-reference/elements/text
+17. Chainlit: Overview, accessed December 11, 2025, https://chainlit-43.mintlify.app/get-started/overview
+18. UI - Chainlit, accessed December 11, 2025, https://docs.chainlit.io/backend/config/ui
+19. Looking for Idea on "How to create this type of UI " · Issue #2222 - GitHub, accessed December 11, 2025, https://github.com/Chainlit/chainlit/issues/2222
+20. Multi-Modality - Chainlit, accessed December 11, 2025, https://docs.chainlit.io/advanced-features/multi-modal
+21. Overview - Chainlit, accessed December 11, 2025, https://docs.chainlit.io/authentication/overview
+22. Features | Open WebUI, accessed December 11, 2025, https://docs.openwebui.com/features/
+23. Key Features of Open WebUI, accessed December 11, 2025, https://open-webui.com/key-features-of-open-webui/
+24. Chainlit or Open webui for production? : r/LocalLLaMA - Reddit, accessed December 11, 2025, https://www.reddit.com/r/LocalLLaMA/comments/1kva7sp/chainlit_or_open_webui_for_production/
+25. Top Open WebUI Alternatives for Running LLMs Locally - Helicone, accessed December 11, 2025, https://www.helicone.ai/blog/open-webui-alternatives
+26. Stream Protocols - AI SDK UI, accessed December 11, 2025, https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol
+27. Streaming Custom Data - AI SDK UI, accessed December 11, 2025, https://ai-sdk.dev/docs/ai-sdk-ui/streaming-data
+28. Introducing Chat SDK - Vercel, accessed December 11, 2025, https://vercel.com/blog/introducing-chat-sdk
+29. AI Elements | Vercel Academy, accessed December 11, 2025, https://vercel.com/academy/ai-sdk/ai-elements
+30. Inline Citation - AI SDK, accessed December 11, 2025, https://ai-sdk.dev/elements/components/inline-citation
+31. Tutorial - Persist LangGraph State with Couchbase Checkpointer, accessed December 11, 2025, https://developer.couchbase.com/tutorial-langgraph-persistence-checkpoint/
+32. LangGraph RAG: Build Agentic Retrieval?Augmented Generation - Leanware, accessed December 11, 2025, https://www.leanware.co/insights/langgraph-rag-agentic
+33. A tutorial on building local agent using LangGraph, LLaMA3 and Elasticsearch vector store from scratch, accessed December 11, 2025, https://www.elastic.co/search-labs/cn/blog/local-rag-agent-elasticsearch-langgraph-llama3
+34. Build a custom RAG agent with LangGraph - Docs by LangChain, accessed December 11, 2025, https://docs.langchain.com/oss/python/langgraph/agentic-rag
+35. Tutorial: Building an Agentic RAG with Fallback to Websearch - Haystack, accessed December 11, 2025, https://haystack.deepset.ai/tutorials/36_building_fallbacks_with_conditional_routing
+36. LangGraph Basics (Part 2): State Management, Conditional Routing, and Complex Workflows (Part 7 Agentic AI) | by Sainadh Bahadursha | Medium, accessed December 11, 2025, https://medium.com/@sainadhbahadursha/langgraph-basics-part-2-state-management-conditional-routing-and-complex-workflows-1854f6568cd4
+37. Thinking in LangGraph - Docs by LangChain, accessed December 11, 2025, https://docs.langchain.com/oss/python/langgraph/thinking-in-langgraph
+38. Understanding Memory in LangGraph: Short-term vs Long-term Memory with Deep Dive into Long-term Memory | by Areeb Ahmed | Oct, 2025 | Medium, accessed December 11, 2025, https://medium.com/@areebahmed575/understanding-memory-in-langgraph-short-term-vs-long-term-memory-with-deep-dive-into-long-term-fe644056e5a7
+39. Mastering Persistence in LangGraph: Checkpoints, Threads, and Beyond | by Vinod Rane, accessed December 11, 2025, https://medium.com/@vinodkrane/mastering-persistence-in-langgraph-checkpoints-threads-and-beyond-21e412aaed60
+40. Need guidance on using LangGraph Checkpointer for persisting chatbot sessions - Reddit, accessed December 11, 2025, https://www.reddit.com/r/LangChain/comments/1on4ym0/need_guidance_on_using_langgraph_checkpointer_for/
+41. Build an AI-Powered App with FastAPI, Qdrant, NumPy, and Pydantic | Step-by-Step Tutorial #7 - YouTube, accessed December 11, 2025, https://www.youtube.com/watch?v=-gMfAHxYf4Y
+42. qdrant/webinar-cloud-inference: How to Build a Multimodal Search Stack with One API, accessed December 11, 2025, https://github.com/qdrant/webinar-cloud-inference
+43. Building Performant, Scaled Agentic Vector Search with Qdrant, accessed December 11, 2025, https://qdrant.tech/articles/agentic-builders-guide/
+44. Building and Deploying a MinIO-Powered LangChain Agent API with LangServe, accessed December 11, 2025, https://blog.min.io/minio-powered-langchain-agent-with-langserve/
+45. FastAPI MinIO Integration. Storing and retrieving files in modern… | by Mojtaba (MJ) Michael, accessed December 11, 2025, https://medium.com/@mojimich2015/fastapi-minio-integration-31b35076afcb
+46. Building an LLM Application for Document Q&A Using Chainlit, Qdrant and Zephyr, accessed December 11, 2025, https://nayakpplaban.medium.com/building-an-llm-application-for-document-q-a-using-chainlit-qdrant-and-zephyr-7efca1965baa
+47. Langchain RAG Fusion — Advance RAG. | by Nagesh Mashette - Medium, accessed December 11, 2025, https://medium.com/@nageshmashette32/langchain-rag-fusion-advance-rag-32eefc63da99
+48. Enhancing Search Relevancy with Cohere Rerank 3.5 and Amazon OpenSearch Service, accessed December 11, 2025, https://aws.amazon.com/blogs/big-data/enhancing-search-relevancy-with-cohere-rerank-3-5-and-amazon-opensearch-service/
+49. Mastering Reranking in RAG: From Basic Retrieval to Advanced Methods | by Abheshith, accessed December 11, 2025, https://medium.com/@abheshith7/mastering-reranking-in-rag-from-basic-retrieval-to-advanced-methods-db297530361a
+50. Best SERP API Comparison 2025: SerpAPI vs Exa vs Tavily vs ScrapingDog vs ScrapingBee - DEV Community, accessed December 11, 2025, https://dev.to/ritza/best-serp-api-comparison-2025-serpapi-vs-exa-vs-tavily-vs-scrapingdog-vs-scrapingbee-2jci
+51. Tavily - The Web Access Layer for AI Agents, accessed December 11, 2025, https://tavily.com/
+52. Crawl to RAG - Tavily Use Cases, accessed December 11, 2025, https://www.tavily.com/use-cases/crawl-to-rag
+53. Crawl4AI vs Firecrawl: Detailed Comparison 2025 - Scrapeless, accessed December 11, 2025, https://www.scrapeless.com/en/blog/crawl4ai-vs-firecrawl
+54. Crawl4AI vs. Firecrawl: Features, Use Cases & Top Alternatives - Bright Data, accessed December 11, 2025, https://brightdata.com/blog/ai/crawl4ai-vs-firecrawl
+55. Crawl4AI vs. Firecrawl - Apify Blog, accessed December 11, 2025, https://blog.apify.com/crawl4ai-vs-firecrawl/
+56. Agent Browser vs Puppeteer & Playwright: Key Differences - Bright Data, accessed December 11, 2025, https://brightdata.com/blog/ai/agent-browser-vs-puppeteer-playwright
+57. accessed December 11, 2025, https://apidog.com/blog/awesome-ai-browsers/#:~:text=Browserbase&text=Browserbase%20is%20a%20platform%20for,or%20form%20submissions%20at%20scale.
+58. Browser Use - Enable AI to automate the web, accessed December 11, 2025, https://browser-use.com/
+59. Understanding Long-Term Memory in LangGraph: A Hands-On Guide | by Sweety Tripathi | Coinmonks | Oct, 2025, accessed December 11, 2025, https://medium.com/coinmonks/understanding-long-term-memory-in-langgraph-a-hands-on-guide-01d9c6c97b77
+60. Giving LLMs a Brain: Building a Long-Term Memory System with Python, LangChain, and FAISS, accessed December 11, 2025, https://dev523.medium.com/giving-llms-a-brain-building-a-long-term-memory-system-with-python-langchain-and-faiss-7173bc33b1f4
+61. LangchainJS now supports Zep Memory!, accessed December 11, 2025, https://blog.getzep.com/zep-langchainjs-memory/
+62. Zep x LangChain: Diagnosing and Fixing Slow Chatbots, accessed December 11, 2025, https://blog.langchain.com/zep-x-langchain-slow-chatbots/
+63. Configuring Keycloak for production, accessed December 11, 2025, https://www.keycloak.org/server/configuration-production
+64. Securing NVIDIA Services with Istio and Keycloak, accessed December 11, 2025, https://docs.nvidia.com/datacenter/cloud-native/secure-services-istio-keycloak/latest/
+65. Secure and Dynamic Microservices Architecture with FastAPI, Keycloak, Vault, Traefik, and Consul | by Hemathierry | Medium, accessed December 11, 2025, https://medium.com/@hemathierry/%EF%B8%8F-architectures-microservices-s%C3%A9curis%C3%A9es-et-dynamiques-avec-fastapi-keycloak-vault-traefik-et-c6a688d676cc
+66. MinIO Networking with Overlay Networks, accessed December 11, 2025, https://blog.min.io/minio-networking-with-overlay-networks/
+67. Security - Qdrant, accessed December 11, 2025, https://qdrant.tech/documentation/guides/security/

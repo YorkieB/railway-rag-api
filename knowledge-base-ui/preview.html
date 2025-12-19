@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Base UI Preview</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #0e1117;
+            color: #fafafa;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #262730;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #ff4b4b;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        .subtitle {
+            color: #a0a0a0;
+            margin-bottom: 30px;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            border-bottom: 2px solid #3d4147;
+            margin-bottom: 30px;
+        }
+        .tab {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            color: #a0a0a0;
+            cursor: pointer;
+            font-size: 16px;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        .tab:hover {
+            color: #fafafa;
+        }
+        .tab.active {
+            color: #ff4b4b;
+            border-bottom-color: #ff4b4b;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .columns {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 30px;
+        }
+        .card {
+            background: #1e2229;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .card h3 {
+            color: #ff4b4b;
+            margin-bottom: 15px;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 12px;
+            background: #0e1117;
+            border: 1px solid #3d4147;
+            border-radius: 4px;
+            color: #fafafa;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        button {
+            background: #ff4b4b;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+        button:hover {
+            background: #ff6b6b;
+        }
+        .success {
+            background: #00cc88;
+            color: white;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .info-box {
+            background: #1e3a5f;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            border-left: 4px solid #4a9eff;
+        }
+        .source {
+            background: #1e2229;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            border-left: 4px solid #4a9eff;
+        }
+        .file-upload {
+            border: 2px dashed #3d4147;
+            padding: 40px;
+            text-align: center;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .file-upload:hover {
+            border-color: #ff4b4b;
+            background: #1e2229;
+        }
+        .document-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: #1e2229;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .delete-btn {
+            background: #cc0000;
+            width: auto;
+            padding: 8px 16px;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        .status.online {
+            background: #00cc88;
+            color: white;
+        }
+        ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        li {
+            padding: 5px 0;
+            color: #a0a0a0;
+        }
+        .divider {
+            height: 1px;
+            background: #3d4147;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧠 Personal Knowledge Base with RAG</h1>
+        <p class="subtitle">Ask questions about your documents and get AI-powered answers with context.</p>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="showTab(0)">💬 Ask Questions</button>
+            <button class="tab" onclick="showTab(1)">📤 Upload Documents</button>
+            <button class="tab" onclick="showTab(2)">📚 Manage Documents</button>
+        </div>
+
+        <!-- Tab 1: Ask Questions -->
+        <div class="tab-content active">
+            <div class="columns">
+                <div>
+                    <div class="card">
+                        <h3>💬 Ask a Question</h3>
+                        <input type="text" placeholder="e.g., What is vector search?" value="What does the test document contain?">
+                        <button>🔍 Search</button>
+                        
+                        <div class="success">✅ Answer found!</div>
+                        <div class="success" style="background: #1e3a5f;">📚 Answer generated from knowledge base</div>
+                        
+                        <h3 style="margin-top: 20px;">📝 Answer</h3>
+                        <div class="info-box">
+                            The test document contains sample content that demonstrates the upload functionality. It includes information about how the system processes documents: extracting text, chunking it into smaller pieces, generating embeddings for each chunk, storing them in BigQuery, and retrieving them when answering questions.
+                        </div>
+                        
+                        <h3 style="margin-top: 20px;">📚 Sources</h3>
+                        <div class="source">
+                            <strong>Source 1 - Score: 0.856</strong><br>
+                            <small>Document: Test Document | Chunk 0</small>
+                            <p style="margin-top: 10px; color: #a0a0a0;">This is a test document for the knowledge base upload functionality. It contains some sample content that will be chunked and embedded into the BigQuery vector database...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="card">
+                        <h3>ℹ️ About</h3>
+                        <p style="color: #a0a0a0; margin-bottom: 15px;">
+                            This knowledge base uses:
+                        </p>
+                        <ul>
+                            <li>• <strong>BigQuery Vector Search</strong> for fast retrieval</li>
+                            <li>• <strong>Gemini & OpenAI GPT</strong> for intelligent answers</li>
+                            <li>• <strong>Google Cloud Run</strong> for scalable hosting</li>
+                        </ul>
+                        <p style="color: #a0a0a0; margin-top: 15px;">
+                            Simply ask a question and the system will:
+                        </p>
+                        <ol style="color: #a0a0a0; padding-left: 20px;">
+                            <li>Convert your question to a vector</li>
+                            <li>Search for relevant documents</li>
+                            <li>Generate a comprehensive answer</li>
+                        </ol>
+                        
+                        <h3 style="margin-top: 20px;">📊 System Status</h3>
+                        <div class="status online">🟢 RAG API: Online</div>
+                        
+                        <div class="divider"></div>
+                        <p style="color: #666; font-size: 12px;">Powered by Google Cloud & OpenAI</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Upload Documents -->
+        <div class="tab-content">
+            <div class="columns">
+                <div>
+                    <div class="card">
+                        <h3>📤 Upload Documents</h3>
+                        <p style="color: #a0a0a0; margin-bottom: 20px;">
+                            Upload instruction, research, or guidance files to add them to your knowledge base.
+                        </p>
+                        
+                        <div class="file-upload">
+                            <p style="font-size: 18px; margin-bottom: 10px;">📄 Choose a file to upload</p>
+                            <p style="color: #666; font-size: 14px;">Supported formats: PDF, DOCX, TXT, MD</p>
+                        </div>
+                        
+                        <input type="text" placeholder="Document Name (optional)" value="Research Paper">
+                        
+                        <button>📤 Upload Document</button>
+                        
+                        <div class="success">
+                            ✅ Document uploaded successfully!<br>
+                            <pre style="background: rgba(0,0,0,0.3); padding: 10px; margin-top: 10px; border-radius: 4px; font-size: 12px;">
+{
+  "Document Name": "Research Paper",
+  "Chunks Created": 5,
+  "Total Characters": 1234
+}</pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="card">
+                        <h3>📋 Supported Formats</h3>
+                        <ul>
+                            <li>• <strong>PDF</strong> (.pdf)</li>
+                            <li>• <strong>Word</strong> (.docx)</li>
+                            <li>• <strong>Text</strong> (.txt)</li>
+                            <li>• <strong>Markdown</strong> (.md, .markdown)</li>
+                        </ul>
+                        
+                        <h3 style="margin-top: 30px;">💡 Tips</h3>
+                        <ul>
+                            <li>• Documents are automatically chunked</li>
+                            <li>• Each chunk is embedded and indexed</li>
+                            <li>• Large documents may take longer to process</li>
+                            <li>• You can upload multiple documents</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Manage Documents -->
+        <div class="tab-content">
+            <div class="card">
+                <h3>📚 Manage Documents</h3>
+                <p style="color: #a0a0a0; margin-bottom: 20px;">
+                    View and manage documents in your knowledge base.
+                </p>
+                
+                <button style="width: auto; display: inline-block;">🔄 Refresh Document List</button>
+                
+                <div class="success" style="margin-top: 20px;">✅ Found 3 document(s) in the knowledge base</div>
+                
+                <div class="document-item">
+                    <div>
+                        <strong>Research Paper.pdf</strong><br>
+                        <small style="color: #666;">15 chunks</small>
+                    </div>
+                    <button class="delete-btn">🗑️ Delete</button>
+                </div>
+                
+                <div class="divider"></div>
+                
+                <div class="document-item">
+                    <div>
+                        <strong>Instructions.docx</strong><br>
+                        <small style="color: #666;">8 chunks</small>
+                    </div>
+                    <button class="delete-btn">🗑️ Delete</button>
+                </div>
+                
+                <div class="divider"></div>
+                
+                <div class="document-item">
+                    <div>
+                        <strong>Guidance Document.txt</strong><br>
+                        <small style="color: #666;">12 chunks</small>
+                    </div>
+                    <button class="delete-btn">🗑️ Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showTab(index) {
+            const tabs = document.querySelectorAll('.tab');
+            const contents = document.querySelectorAll('.tab-content');
+            
+            tabs.forEach((tab, i) => {
+                tab.classList.toggle('active', i === index);
+            });
+            
+            contents.forEach((content, i) => {
+                content.classList.toggle('active', i === index);
+            });
+        }
+    </script>
+</body>
+</html>
+

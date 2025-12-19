@@ -1,0 +1,155 @@
+Comprehensive Guide to Manual Containerization and Deployment Architectures for FastAPI on Google Cloud Platform
+1. Executive Summary: The Strategic Imperative of Manual Containerization
+The deployment of microservices to serverless infrastructure represents a critical juncture in modern cloud-native engineering. For developers utilizing the Google Cloud Platform (GCP), specifically Cloud Run, the initial onboarding experience is often facilitated by high-level abstractions such as Google Cloud Buildpacks. These tools are designed to lower the barrier to entry by automating the transformation of source code into executable container images without requiring deep knowledge of container runtimes or Docker syntax. However, as application complexity increases—manifesting in custom directory structures, specific entry point requirements, or complex dependency chains common in Python FastAPI applications—the heuristic nature of Buildpacks often becomes a liability rather than an asset.
+The failure of the automatic deployment command (gcloud run deploy --source) acts as a forcing function, compelling engineering teams to transition from an opaque, "black-box" build process to a transparent, "white-box" strategy centered on manual Dockerfile configurations. This report provides an exhaustive technical analysis and implementation guide for this transition. It dissects the architectural divergence between Buildpacks and manual Docker builds, detailing the precise command-line interface (CLI) sequences required to orchestrate Cloud Build and Cloud Run. Furthermore, it conducts a forensic examination of the Identity and Access Management (IAM) governance required to secure this pipeline, addressing the specific "permission denied" errors that frequently plague the transition to manual artifact management.
+By adopting the "Manual Docker Build" strategy, organizations gain deterministic control over the runtime environment, optimize startup performance through layer caching, and eliminate the unpredictability of automated detection logic. This report serves as the definitive reference for executing this shift, ensuring a production-grade deployment of FastAPI services on Google Cloud's serverless infrastructure.
+2. The Architectural Divergence: Buildpacks vs. Dockerfiles
+To successfully navigate the transition to manual containerization, it is essential to understand the underlying mechanisms that differentiate the automated Buildpack approach from the manual Dockerfile strategy. This is not merely a change in syntax but a fundamental shift in responsibility and control over the software supply chain.
+2.1 The Heuristic Mechanism of Cloud Native Buildpacks
+Google Cloud Buildpacks are an implementation of the Cloud Native Computing Foundation (CNCF) Buildpack specification. Their primary design philosophy is to transform source code into a runnable container image without developer intervention regarding the operating system or runtime environment. When a developer executes gcloud run deploy --source, the system initiates a detection phase. The Buildpack builder scans the source code repository for signature files—such as requirements.txt, pyproject.toml, or Procfile—to determine the appropriate language runtime.
+In the context of Python applications, and specifically FastAPI, this detection logic is rigid. The Buildpack attempts to identify the application's entry point by looking for standard patterns, typically a main.py file containing an app object. If identified, it defaults to launching the application using gunicorn as the Web Server Gateway Interface (WSGI) HTTP server. While this automation simplifies the "Day 0" experience, it creates a "black box" where the developer has limited visibility into the constructed image.
+The limitations of this heuristic approach become evident when the application structure deviates from the expected norm. For instance, if a FastAPI application is nested within a src/ directory, uses a factory pattern for application initialization, or requires specific uvicorn configuration arguments (such as custom worker classes or loop implementations), the Buildpack's detection logic may fail. The error message google.python.missing-entrypoint is a hallmark of this failure, indicating that the automated system could not infer how to launch the application. Furthermore, the default behavior of setting the "Last Modified Date" of source files to January 1, 1980, to ensure reproducible builds can inadvertently break browser-side caching mechanisms or application logic dependent on file timestamps.
+2.2 The Deterministic Nature of Manual Docker Builds
+In contrast, the "Manual Docker Build" strategy relies on a Dockerfile—a declarative script that defines the exact state of the container image. This represents a "white box" approach, where every layer of the image is explicitly defined by the developer. For a FastAPI application, this control is paramount. It allows for the precise selection of the base operating system (e.g., python:3.11-slim), the manual installation of system-level dependencies required for Python C-extensions, and the exact specification of the start command.
+The transition to a Dockerfile uncouples the build phase from the deployment phase. While gcloud run deploy --source combines these steps into an atomic operation, the manual strategy separates them into artifact creation (gcloud builds submit) and infrastructure provisioning (gcloud run deploy). This separation of concerns allows for richer debugging capabilities, as build logs are fully exposed, and enables the integration of intermediate steps such as vulnerability scanning and automated testing before the image is ever deployed to the runtime environment.
+2.3 Comparative Analysis of Containerization Strategies
+The following table summarizes the operational differences between the two approaches, highlighting the trade-offs involved in the shift to manual builds.
+FeatureGoogle Cloud BuildpacksManual DockerfileControl ParadigmDeclarative logic inferred by heuristics.Imperative logic defined by the developer.Build SpeedSlower initial builds; faster subsequent builds via layer rebasing.Dependent on Docker layer caching optimization.Entry PointAuto-detected (often defaults to Gunicorn).Explicitly defined (e.g., uvicorn main:app).CustomizationLimited to supported hooks and environment variables.Unlimited; full OS and filesystem control.Security PatchingAutomatic rebasing of base images without rebuilding app layers.Requires manual rebuild and redeploy to pick up base image updates.Failure ModeDetection failure or runtime crash due to misconfiguration.Build failure due to syntax or dependency errors.3. Implementation: The Production-Grade FastAPI Dockerfile
+The foundation of the manual deployment strategy is the Dockerfile. A correctly constructed Dockerfile for FastAPI on Cloud Run must adhere to specific constraints regarding port binding, signal handling, and dependency management.
+3.1 Base Image Selection and Optimization
+The choice of base image dictates the size, security surface, and performance of the container. While Buildpacks manage this choice automatically, the manual strategy places the burden on the developer. A standard recommendation for Python microservices is the slim variant of the official Python image (e.g., python:3.11-slim). This image contains the minimal packages required to run Python, significantly reducing the image size compared to the full version, while avoiding the compatibility issues often associated with Alpine Linux in Python environments due to musl libc differences.
+3.2 Dependency Management and Layer Caching
+One of the critical performance optimizations in Docker is layer caching. Docker builds images in layers, and if a layer's instruction and context haven't changed, the builder reuses the cached layer. To maximize this, dependencies should be installed before the application code is copied. If the requirements.txt file is copied and pip install is run as a separate step prior to COPY.., the time-consuming installation process is cached and only re-executed when dependencies change, rather than on every code change.
+3.3 The Entry Point and Port Configuration
+Cloud Run adheres to the Knative contract, which stipulates that the container must listen for HTTP requests on the port defined by the PORT environment variable. By default, this is port 8080, but the platform reserves the right to change it. Therefore, hardcoding the port in the application or Dockerfile is an anti-pattern. The Dockerfile should reference the PORT variable in the start command.
+Furthermore, proper signal handling is essential for serverless environments where containers are frequently spun up and down. Using the exec form of the CMD instruction ensures that the application becomes the PID 1 process, allowing it to receive and handle standard Unix signals like SIGTERM for graceful shutdowns.
+3.4 Recommended Dockerfile Specification
+The following Dockerfile specification represents the industry standard for a FastAPI application targeting Cloud Run. It integrates best practices for environment configuration, caching, and execution.
+# Select a lightweight base image to minimize cold start latency and attack surface.
+FROM python:3.11-slim
+
+# Set environment variables to optimize Python execution in containers.
+# PYTHONUNBUFFERED=1 ensures that logs are flushed directly to the standard output,
+# which is critical for visibility in Cloud Logging.
+ENV PYTHONUNBUFFERED=1
+
+# PYTHONDONTWRITEBY[span_29](start_span)[span_29](end_span)TECODE=1 prevents Python from generating.pyc files,
+# keeping the container filesystem clean.
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Define the working directory. This acts as the root for subsequent instructions.
+WORKDIR /app
+
+# Copy the dependency definition file first.
+# This leverages Docker's layer caching mechanism. If requirements.txt is unchanged,
+# the subsequent RUN instruction is skipped, speeding up builds.[span_46](start_span)[span_46](end_span)
+COPY requirements.txt.
+
+# Install dependencies.
+# --no-cache-dir disables the pip cache, reducing the final image size.
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the remaining application source code.
+# This layer changes most frequently, so it is placed last.
+COPY..
+
+# The application must listen on the port defined by the PORT environment variable.
+# Cloud Run injects this variable (defaulting to 8080).
+# The '[span_44](start_span)[span_44](end_span)exec' form is used to ensure the process receives SIGTERM signals.
+CMD exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}
+
+This configuration explicitly resolves the ambiguity that causes Buildpacks to fail. By defining the entry point as uvicorn main:app, the developer overrides the default heuristic that might look for app in main.py and attempt to use Gunicorn.
+4. The Build Infrastructure: Google Cloud Build
+With the Dockerfile in place, the next phase is the transformation of the source code into a container image. This process is handled by Google Cloud Build, a managed service that executes builds on Google's infrastructure. Using Cloud Build eliminates the need for a local Docker daemon and leverages the high bandwidth of the cloud environment for pushing images to the registry.
+4.1 The Mechanics of gcloud builds submit
+The command gcloud builds submit initiates the build process. Internally, this command performs a series of operations that are transparent to the user but critical for troubleshooting:
+1. Context Archival: The Google Cloud CLI (gcloud) compresses the current directory (the build context) into a tarball.
+2. Staging: This tarball is uploaded to a Cloud Storage bucket. This bucket is often auto-created and named [project_id]_cloudbuild.
+3. Worker Provisioning: The Cloud Build service triggers a build job, provisioning a temporary virtual machine (VM). This VM mounts the tarball from Cloud Storage into a directory typically at /workspace.
+4. Execution: The Docker daemon on the worker VM executes the instructions in the Dockerfile found in the root of the workspace.
+5. Artifact Push: Upon successful completion, the resulting image is pushed to the specified container registry.
+4.2 Artifact Registry: The Modern Standard
+Historically, Google Cloud used Container Registry (gcr.io). However, this service is deprecated in favor of Artifact Registry (pkg.dev), which offers granular access control, regional repositories, and support for multiple artifact formats beyond Docker. The transition to manual builds serves as an opportune moment to adopt Artifact Registry if not already in use.
+Before submitting a build, a repository must be created to store the images. This is a one-time setup operation.
+Repository Creation Command:
+gcloud artifacts repositories create my-repo \
+    --repository-format=docker \
+    --location=us-central1 \
+    --description="FastAPI Docker Repository"
+
+The --location flag is crucial. It should match the region where the Cloud Run service will be deployed (e.g., us-central1). Co-locating the registry and the runtime minimizes latency during image pulls and eliminates cross-region data transfer costs.
+4.3 Executing the Build
+Once the repository is established, the build is submitted using the full image tag path required by Artifact Registry. The format is LOCATION-docker.pkg.dev/PROJECT_ID/REPOSITORY/IMAGE:TAG.
+Build Submission Command:
+gcloud builds submit. \
+    --tag us-central1-docker.pkg.dev/my-project-id/my-repo/fastapi-app:latest
+
+Unlike the opaque gcloud run deploy --source command, which hides build details behind a spinner, gcloud builds submit streams the standard output (stdout) and standard error (stderr) of the Docker process to the user's terminal. This visibility allows the developer to immediately identify issues such as missing dependencies in requirements.txt or syntax errors in the Dockerfile.
+5. The Deployment Target: Google Cloud Run
+The final stage of the pipeline is the deployment of the immutable artifact to Cloud Run. Cloud Run is a fully managed compute platform that automatically scales stateless containers. It abstracts away the underlying infrastructure (clusters, nodes) and focuses solely on the serving capability of the container.
+5.1 The gcloud run deploy Command Structure
+The manual deployment command differs significantly from the source deployment command. Instead of pointing to a directory, it points to the specific image hash or tag in the Artifact Registry.
+Deployment Command:
+gcloud run deploy my-fastapi-service \
+    --image us-central1-docker.pkg.dev/my-project-id/my-repo/fastapi-app:latest \
+    --region us-central1 \
+    --platform managed \
+    --allow-unauthenticated
+
+Analysis of Flags:
+? --image: Specifies the exact artifact to be deployed. This decouples the deployment from the build context.
+? --region: Dictates the physical location of the computing resources. This must align with the Artifact Registry location for optimal performance.
+? --platform managed: Explicitly targets the fully managed Cloud Run product. While often optional (as it is the default), specifying it ensures the command does not inadvertently target Cloud Run for Anthos or GKE.
+? --[span_60](start_span)[span_60](end_span)allow-unauthenticated: This flag removes the IAM requirement for invoking the service, making it publicly accessible via the internet. For internal microservices or APIs protected by an API Gateway, this flag should be omitted to enforce IAM-based authentication.
+5.2 Environment Variables and Configuration
+During deployment, additional runtime configurations can be injected. For FastAPI applications, environment variables are often used to define database connection strings, API keys, or debug modes. These are set using the --set-env-vars flag.
+gcloud run deploy my-fastapi-service \
+    --image us-central1-docker.pkg.dev/my-project-id/my-repo/fastapi-app:latest \
+    --set-env-vars "DB_HOST=10.0.0.1,DEBUG=false"
+
+.
+Crucially, the PORT environment variable is automatically injected by Cloud Run and does not need to be manually set, though the application must listen on it.
+6. IAM Governance and Security Architecture
+The most significant friction point in transitioning from automated to manual builds is Identity and Access Management (IAM). The gcloud run deploy --source command relies on a high level of abstraction where GCP attempts to auto-configure permissions. When these steps are decoupled, the implicit permission grants are removed, and the developer must explicitly manage the security model. Failures in this area typically manifest as PermissionDenied errors during the build or deploy phases.
+Understanding the interaction between the three primary identities involved is a prerequisite for successful troubleshooting.
+6.1 The Identity Triangle
+1. The User / Developer: The human or CI/CD system initiating the gcloud commands.
+2. The Cloud Build Service Account: The machine identity that executes the build steps and interacts with storage and registries. This is typically formatted as @cloudbuild.gserviceaccount.com.
+3. The Cloud Run Service Account: The machine identity that the deployed application uses at runtime to access other GCP services (like Firestore or Cloud SQL). By default, this is the Compute Engine default service account: -compute@developer.gserviceaccount.com.
+6.2 Analyzing Common Permission Failures
+6.2.1 The Staging Bucket Access Failure
+Error: ERROR: (gcloud.builds.submit) The user is forbidden from accessi[span_18](start_span)[span_18](end_span)ng the bucket [project_cloudbuild]. Context: When gcloud builds submit is run, the CLI uploads the source code to a Google Cloud Storage (GCS) staging bucket. The user running the command must have permission to write to this bucket. Resolution: The user requires the roles/storage.objectAdmin role on the specific bucket, or the broader roles/viewer on the project. Additionally, the user must have the roles/cloudbuild.builds.editor role to request the build.
+6.2.2 The Artifact Registry Upload Failure
+Error: denied: Permission "artifactregistry.repositories.uploadArtifacts" denied on resource... Context: This error occurs at the end of the build step when the Cloud Build Service Account attempts to push the created image to Artifact Registry. It indicates that the builder identity lacks write access to the target repository. Resolution: The Cloud Build Service Account must be granted the Artifact Registry Writer (roles/artifactregistry.writer) role. This can be configured via the IAM console or CLI:
+gcloud projects add-iam-policy-binding PROJECT_ID \
+    --member="serviceAccount:PROJECT_NUMBER@cloudbuild.gserviceaccount.com" \
+    --role="roles/artifactregistry.writer"
+
+.
+6.2.3 The Deployment Identity Failure
+Error: Permission denied during gcloud run deploy. Context: Deploying a service involves two distinct permissions: the permission to modify the Cloud Run service configuration and the permission to "act as" the service account that will run the service. The latter is a security boundary to prevent users from escalating privileges by deploying code that runs as a highly privileged service account. Resolution: The user requires both Cloud Run Admin (roles/run.admin) and Service Account User (roles/iam.serviceAccountUser).
+6.2.4 The Runtime Image Pull Failure
+Error: Image not found or PermissionDenied in Cloud Run logs during startup. Context: Even if the deployment command succeeds, the Cloud Run service might fail to start if the runtime identity (the Cloud Run Service Account) cannot pull the image from Artifact Registry. This is common when the registry and the Cloud Run service are in different projects or when using a custom service account. Resolution: The Cloud Run Service Account (e.g., the Compute Engine default SA) must have the Artifact Registry Reader (roles/artifactregistry.reader) role on the repository.
+6.3 Least Privilege IAM Strategy
+To maintain a secure posture while enabling the manual build workflow, the following table details the minimum required permissions for each identity.
+IdentityRequired RoleJustificationDeveloper (User)roles/cloudbuild.builds.editorAllows submission of build requests.Developer (User)roles/storage.objectAdminAllows uploading source code tarballs to staging buckets.Developer (User)roles/run.adminAllows creation and update of Cloud Run services.Developer (User)roles/iam.serviceAccountUserAllows the user to deploy services that run as a specific Service Account.Cloud Build SAroles/artifactregistry.writerAllows pushing the built Docker image to the registry.Cloud Build SAroles/logging.logWriterAllows writing build logs to Cloud Logging.Cloud Run SAroles/artifactregistry.readerAllows pulling the image to start the container.7. Troubleshooting Deployment Anomalies
+Even with correct permissions and build syntax, deployments may fail due to runtime configuration issues or subtle interactions between the container and the platform.
+7.1 "Revision is not ready" Errors
+The most generic and frustrating error in Cloud Run is: Revision 'service-name' is not ready and cannot serve traffic. This typically mask an underlying issue with the container startup.
+Diagnosis:
+1. Check the Cloud Run Logs. If the logs show "Container failed to start. Failed to start and then listen on the port defined by the PORT environment variable," the application is not binding to the correct interface or port.
+2. Resolution: Verify the Dockerfile CMD. It must use 0.0.0.0 as the host. Using 127.0.0.1 (localhost) prevents the Cloud Run proxy from connecting to the container. Ensure the port matches the injected $PORT variable.
+7.2 Entry Point Conflicts
+If the logs show ModuleNotFoundError or ImportError, the directory structure inside the container likely does not match what Python expects.
+Diagnosis: This often happens when local development relies on the current directory being in PYTHONPATH, but the Docker COPY command places files differently. Resolution: Explicitly set WORKDIR /app in the Dockerfile and ensure the CMD references the module path correctly relative to that directory (e.g., uvicorn src.main:app if the code is in a src folder).
+7.3 Performance Optimization: Cold Starts
+If the application deploys successfully but experiences slow startup times (cold starts), the container image might be too large or the initialization logic too heavy.
+Optimization:
+? Base Image: Ensure python-slim is used instead of the full Python image.
+? Lazy Loading: Defer heavy imports (like machine learning models) until they are needed or use Cloud Run's CPU boost feature.
+? Concurrency: Tune the concurrency settings. By default, Cloud Run allows 80 concurrent requests per instance. For Python (which is single-threaded due to the GIL), utilizing an ASGI server like Uvicorn allows handling concurrent I/O-bound requests, but CPU-bound tasks may require lowering the concurrency limit or increasing the instance count.
+8. Conclusion
+The transition from Google Cloud Buildpacks to a "Manual Docker Build" strategy is a defining moment in the maturity of a Cloud Run deployment pipeline. While Buildpacks offer rapid initial onboarding, their heuristic nature inevitably clashes with the bespoke requirements of production-grade FastAPI applications. By adopting the manual strategy, engineering teams reclaim control over the runtime environment, enabling the use of optimized base images, precise entry point definitions, and deterministic dependency management.
+This report has outlined the comprehensive implementation plan for this shift, detailing the replacement of gcloud run deploy --source with the decoupled sequence of gcloud builds submit and gcloud run deploy. It has further provided a deep dive into the IAM governance required to secure this pipeline, identifying the specific roles and permissions necessary to avoid common access failures. By adhering to the "white-box" principles of manual containerization, developers can ensure that their FastAPI services are robust, secure, and performant, leveraging the full capabilities of Google Cloud's serverless infrastructure without being constrained by the opacity of automated detection logic.
+Works cited
+1. Buildpacks, Jib, or Dockerfile: Which method should you choose? | Google Cloud Blog, https://cloud.google.com/blog/topics/developers-practitioners/comparing-containerization-methods-buildpacks-jib-and-dockerfile 2. Deploy services from source code | Cloud Run - Google Cloud Documentation, https://docs.cloud.google.com/run/docs/deploying-source-code 3. Dockerfile vs Buildpacks: Which One to Choose? - Devtron, https://devtron.ai/blog/dockerfile-vs-buildpacks-which-one-to-choose/ 4. Failed to deploy cloud run - Failure: (ID: 194879d1) Failed to run /bin/build: for Python, an entrypoint must be manually set, either with "GOOGLE_ENTRYPOINT" env var or by creating a "Procfile" file · Issue #324 · GoogleCloudPlatform/buildpacks - GitHub, https://github.com/GoogleCloudPlatform/buildpacks/issues/324 5. Buildpacks or Dockerfile : r/googlecloud - Reddit, https://www.reddit.com/r/googlecloud/comments/1monrkq/buildpacks_or_dockerfile/ 6. Cloud Build/Artifact Registry Permission Denied Error - cloudbuild.gserviceaccount.com Service Account Missing - Stack Overflow, https://stackoverflow.com/questions/79703268/cloud-build-artifact-registry-permission-denied-error-cloudbuild-gserviceaccou 7. Build a Python application | Buildpacks - Google Cloud Documentation, https://docs.cloud.google.com/docs/buildpacks/python 8. Build and deploy an app to Cloud Run with a single command | Google Cloud Blog, https://cloud.google.com/blog/products/serverless/build-and-deploy-an-app-to-cloud-run-with-a-single-command 9. Troubleshoot Cloud Run issues - Google Cloud Documentation, https://docs.cloud.google.com/run/docs/troubleshooting 10. google cloud platform - What does "gcloud builds submit ... " do?, https://stackoverflow.com/questions/64079226/what-does-gcloud-builds-submit-do 11. Managing Environment Variables and Deploying to Cloud Run | by Amanda Rozi Kurnia, https://medium.com/@yoursemicolon/managing-environment-variables-and-deploying-to-cloud-run-ab2213a31875 12. Configure containers for services | Cloud Run - Google Cloud Documentation, https://docs.cloud.google.com/run/docs/configuring/services/containers 13. Cloud Run deployment failing for FastAPI - Stack Overflow, https://stackoverflow.com/questions/78623517/cloud-run-deployment-failing-for-fastapi 14. Cloud Build serverless CI/CD platform - Google Cloud, https://cloud.google.com/build 15. A Complete Guide to GCP Cloud Build, Cloud Deployment Manager, Operations, Cloud Source Repositories, Secure Source Manager, Artifact Registry, Cloud Tasks, and Pub/Sub - Medium, https://medium.com/@williamwarley/a-complete-guide-to-gcp-cloud-build-cloud-deployment-manager-operations-cloud-source-d9226200ed9f 16. Troubleshooting build errors - Google Cloud Documentation, https://docs.cloud.google.com/build/docs/troubleshooting 17. Build container images - Google Cloud Documentation, https://docs.cloud.google.com/build/docs/building/build-containers 18. Artifact Registry Deep Dive - Google Codelabs, https://codelabs.developers.google.com/artifact-registry-deepdive 19. General troubleshooting | Artifact Registry - Google Cloud Documentation, https://docs.cloud.google.com/artifact-registry/docs/troubleshooting 20. Cloud Run | Google Cloud, https://cloud.google.com/run 21. Deploying container images to Cloud Run - Google Cloud Documentation, https://docs.cloud.google.com/run/docs/deploying 22. How to use gcloud run deploy : r/googlecloud - Reddit, https://www.reddit.com/r/googlecloud/comments/17uimha/how_to_use_gcloud_run_deploy/ 23. What predefined IAM roles does a service account need to complete the Google Cloud Run Quickstart: Build and Deploy? - Stack Overflow, https://stackoverflow.com/questions/55605972/what-predefined-iam-roles-does-a-service-account-need-to-complete-the-google-clo 24. Configure environment variables for services | Cloud Run - Google Cloud Documentation, https://docs.cloud.google.com/run/docs/configuring/services/environment-variables 25. How to deploy a folder with a Dockerfile to Cloud Run - Simon Willison: TIL, https://til.simonwillison.net/cloudrun/ship-dockerfile-to-cloud-run 26. Default Cloud Build service account | Google Cloud Documentation, https://docs.cloud.google.com/build/docs/cloud-build-service-account 27. Unable to submit build to Cloud Build due to permissions error - Stack Overflow, https://stackoverflow.com/questions/68536433/unable-to-submit-build-to-cloud-build-due-to-permissions-error 28. Permission issue connecting to Artifact Registry - Google Developer forums, https://discuss.google.dev/t/permission-issue-connecting-to-artifact-registry/185617 29. Permission "artifactregistry.repositories.uploadArtifacts" denied on resource "projects/xxx/...", https://discuss.google.dev/t/permission-artifactregistry-repositories-uploadartifacts-denied-on-resource-projects-xxx/107225 30. Preparing FastAPI for Production: A Comprehensive Guide | by Raman Bazhanau | Medium, https://medium.com/@ramanbazhanau/preparing-fastapi-for-production-a-comprehensive-guide-d167e693aa2b
