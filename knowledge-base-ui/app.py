@@ -12,6 +12,27 @@ from io import BytesIO
 import base64
 import time
 import threading
+import datetime
+
+# #region agent log
+# Debug logging function
+def debug_log(hypothesis_id, location, message, data=None):
+    try:
+        log_entry = {
+            "sessionId": "debug-session",
+            "runId": "run1",
+            "hypothesisId": hypothesis_id,
+            "location": location,
+            "message": message,
+            "data": data or {},
+            "timestamp": int(datetime.datetime.now().timestamp() * 1000)
+        }
+        log_path = r"c:\Users\conta\OneDrive\Desktop\project-backup\.cursor\debug.log"
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(log_entry) + "\n")
+    except Exception as e:
+        pass  # Silent fail for logging
+# #endregion agent log
 
 # Configuration - Will be updated from settings if user changes it
 RAG_API_URL = os.getenv("RAG_API_URL", "https://rag-api-883324649002.us-central1.run.app")
@@ -93,11 +114,18 @@ st.set_page_config(
 )
 
 # Custom CSS for JARVIS theme
+# #region agent log
+debug_log("A", "app.py:96", "CSS injection starting", {"css_length": 0})
+# #endregion agent log
 st.markdown("""
 <style>
     /* Main background - dark with purple accents */
     .stApp {
         background: linear-gradient(135deg, #0a0a0f 0%, #1a0a1f 50%, #0a0a0f 100%);
+        overflow-y: auto;
+    }
+    html, body {
+        overflow-y: auto;
     }
     
     /* Hide default Streamlit elements */
@@ -436,8 +464,8 @@ st.markdown("""
     
     /* Chat container */
     .chat-container {
-        background: #ffffff;
-        border: 1px solid #e0e0e0;
+        background: #ffffff !important;
+        border: 1px solid #e0e0e0 !important;
         border-radius: 15px;
         padding: 25px;
         margin-bottom: 20px;
@@ -447,6 +475,8 @@ st.markdown("""
         display: flex;
         flex-direction: column;
         overflow-y: auto;
+        visibility: visible !important;
+        opacity: 1 !important;
     }
     
     /* Answer display */
@@ -484,8 +514,8 @@ st.markdown("""
     }
     
     .artefact-panel {
-        background: #ffffff;
-        border: 1px solid #e0e0e0;
+        background: #ffffff !important;
+        border: 1px solid #e0e0e0 !important;
         border-radius: 15px;
         padding: 25px;
         min-height: 600px;
@@ -497,6 +527,8 @@ st.markdown("""
         align-items: flex-start;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         flex: 1;
+        visibility: visible !important;
+        opacity: 1 !important;
     }
     
     .artefact-title-inner {
@@ -760,7 +792,14 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# #region agent log
+debug_log("A", "app.py:765", "CSS injection completed", {"css_injected": True})
+# #endregion agent log
+
 # Initialize session state
+# #region agent log
+debug_log("D", "app.py:768", "Session state initialization starting", {"existing_keys": list(st.session_state.keys())})
+# #endregion agent log
 if 'messages' not in st.session_state:
     st.session_state.messages = []
 if 'artifacts' not in st.session_state:
@@ -813,7 +852,18 @@ if 'custom_api_keys' not in st.session_state:
 if 'show_voice_popup' not in st.session_state:
     st.session_state.show_voice_popup = False
 
+# #region agent log
+debug_log("D", "app.py:818", "Session state initialization completed", {
+    "messages_count": len(st.session_state.get('messages', [])),
+    "artifacts_count": len(st.session_state.get('artifacts', [])),
+    "all_keys": list(st.session_state.keys())
+})
+# #endregion agent log
+
 # JARVIS Header with image upload areas
+# #region agent log
+debug_log("E", "app.py:821", "Creating header columns", {"column_count": 3})
+# #endregion agent log
 col_header1, col_header2, col_header3 = st.columns([1, 2, 1])
 
 with col_header1:
@@ -893,6 +943,27 @@ if st.session_state.banner_text or st.session_state.banner_image:
     """, unsafe_allow_html=True)
 
 # Main layout - two columns (50/50)
+st.markdown("---")  # Divider to separate header from main content
+
+# Scroll helper (user reports cannot scroll)
+# #region agent log
+debug_log("F", "app.py:901", "Rendering scroll helper button", {"reason": "user_cannot_scroll"})
+# #endregion agent log
+col_scroll, _ = st.columns([1, 4])
+with col_scroll:
+    if st.button("⬇️ Scroll to bottom (debug helper)", key="scroll_helper"):
+        # #region agent log
+        debug_log("F", "app.py:906", "Scroll helper clicked", {"clicked": True})
+        # #endregion agent log
+        components.html("""
+            <script>
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+            </script>
+        """, height=0)
+
+# #region agent log
+debug_log("E", "app.py:914", "Creating main content columns", {"column_count": 2})
+# #endregion agent log
 col_main, col_code = st.columns([1, 1])
 
 # Initialize input variables
@@ -901,12 +972,40 @@ search_clicked = False
 upload_clicked = False
 
 with col_main:
-    st.markdown('<div class="col-main-wrapper">', unsafe_allow_html=True)
-    
-    # Chat container - TOP
-    st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+    # #region agent log
+    debug_log("E", "app.py:908", "Entering col_main context", {"messages_count": len(st.session_state.messages)})
+    # #endregion agent log
+    # Use Streamlit container for chat area
+    chat_container = st.container()
+    with chat_container:
+        # #region agent log
+        debug_log("B", "app.py:912", "Rendering chat container HTML", {"html_type": "div", "has_inline_style": True})
+        # #endregion agent log
+        st.markdown("""
+        <div class="chat-container" style="background: #ffffff; border: 1px solid #e0e0e0; border-radius: 15px; padding: 25px; margin-bottom: 20px; min-height: 500px; max-height: 500px; overflow-y: auto;">
+        """, unsafe_allow_html=True)
+        
+        # Welcome message if no chat history
+        # #region agent log
+        debug_log("C", "app.py:918", "Checking if welcome message should display", {"messages_empty": len(st.session_state.messages) == 0})
+        # #endregion agent log
+        if not st.session_state.messages:
+            st.markdown("""
+            <div style="text-align: center; padding: 60px 20px; color: #666;">
+                <div style="font-size: 4em; margin-bottom: 20px;">🤖</div>
+                <h2 style="color: #8b5cf6; margin-bottom: 15px; font-size: 2em;">Welcome to JARVIS</h2>
+                <p style="font-size: 1.2em; color: #333; margin-bottom: 10px;">Your AI-powered knowledge base assistant</p>
+                <p style="color: #666; font-size: 1em; margin-bottom: 30px;">Ask me anything about your uploaded documents, or upload new documents to expand the knowledge base.</p>
+            </div>
+            """, unsafe_allow_html=True)
+            # #region agent log
+            debug_log("C", "app.py:925", "Welcome message rendered", {"rendered": True})
+            # #endregion agent log
     
     # Display chat history
+    # #region agent log
+    debug_log("C", "app.py:928", "Starting chat history display", {"message_count": len(st.session_state.messages)})
+    # #endregion agent log
     for idx, message in enumerate(st.session_state.messages):
         if message['role'] == 'user':
             # Text above "You" bubble
@@ -941,11 +1040,8 @@ with col_main:
     
     st.markdown('</div>', unsafe_allow_html=True)  # Close chat-container
     
-    # Chat input section - BOTTOM
-    st.markdown('<div class="chat-input-container">', unsafe_allow_html=True)
-    st.markdown("### 💬 Chat Input", unsafe_allow_html=True)
-    
-    # Chat input row
+    # Chat input section
+    st.markdown("### 💬 Chat Input")
     col_input, col_search, col_upload = st.columns([10, 1, 1])
     
     with col_input:
@@ -962,60 +1058,64 @@ with col_main:
     with col_upload:
         upload_clicked = st.button("➕", use_container_width=True, key="upload_btn", help="Upload document")
     
-    st.markdown("</div>", unsafe_allow_html=True)  # Close chat-input-container
-    st.markdown("</div>", unsafe_allow_html=True)  # Close col-main-wrapper
-
 with col_code:
-    st.markdown('<div class="col-code-wrapper">', unsafe_allow_html=True)
-    
-    # Artefact Pattern Panel - TOP
-    st.markdown('<div class="artefact-wrapper">', unsafe_allow_html=True)
-    st.markdown('<div class="artefact-panel">', unsafe_allow_html=True)
-    st.markdown('<div class="artefact-title-inner"># JARVIS Artefact Pattern</div>', unsafe_allow_html=True)
-    
-    if st.session_state.artifacts:
-        for idx, artifact in enumerate(st.session_state.artifacts):
-            artifact_type = artifact.get('type', 'code')
-            artifact_content = artifact.get('content', '')
-            artifact_title = artifact.get('title', f'Artefact {idx + 1}')
-            
-            st.markdown(f"""
-            <div class="artefact-item">
-                <div class="artefact-header">{artifact_title}</div>
-                <div class="artefact-code">{artifact_content}</div>
+    # #region agent log
+    debug_log("E", "app.py:984", "Entering col_code context", {"artifacts_count": len(st.session_state.artifacts)})
+    # #endregion agent log
+    # Use Streamlit container for artifact area
+    artifact_container = st.container()
+    with artifact_container:
+        # #region agent log
+        debug_log("B", "app.py:988", "Rendering artifact panel HTML", {"html_type": "div", "has_inline_style": True})
+        # #endregion agent log
+        st.markdown("""
+        <div class="artefact-panel" style="background: #ffffff; border: 1px solid #e0e0e0; border-radius: 15px; padding: 25px; min-height: 500px; max-height: 500px; overflow-y: auto;">
+            <div class="artefact-title-inner" style="color: #333333; font-size: 1.3em; margin-bottom: 20px; font-weight: 600;"># JARVIS Artefact Pattern</div>
+        """, unsafe_allow_html=True)
+        
+        if st.session_state.artifacts:
+            for idx, artifact in enumerate(st.session_state.artifacts):
+                artifact_type = artifact.get('type', 'code')
+                artifact_content = artifact.get('content', '')
+                artifact_title = artifact.get('title', f'Artefact {idx + 1}')
+                
+                st.markdown(f"""
+                <div class="artefact-item">
+                    <div class="artefact-header">{artifact_title}</div>
+                    <div class="artefact-code">{artifact_content}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Artefact action buttons
+                col_a1, col_a2, col_a3 = st.columns(3)
+                with col_a1:
+                    if st.button("Close", key=f"close_{idx}", use_container_width=True):
+                        st.session_state.artifacts.pop(idx)
+                        st.rerun()
+                with col_a2:
+                    if st.button("Copy", key=f"copy_{idx}", use_container_width=True):
+                        st.write("Copied to clipboard")
+                with col_a3:
+                    if st.button("Edit", key=f"edit_{idx}", use_container_width=True, type="primary"):
+                        st.info("Edit mode - coming soon")
+        else:
+            st.markdown("""
+            <div style="color: #999999; font-style: italic; text-align: center; padding: 40px;">
+                <div style="font-size: 2em; margin-bottom: 10px;">⚙️</div>
+                <div style="color: #666666;">Artefact Pattern Ready</div>
+                <div style="font-size: 0.8em; margin-top: 10px; opacity: 0.7; color: #999999;">
+                    Generated artifacts will appear here
+                </div>
             </div>
             """, unsafe_allow_html=True)
-            
-            # Artefact action buttons
-            col_a1, col_a2, col_a3 = st.columns(3)
-            with col_a1:
-                if st.button("Close", key=f"close_{idx}", use_container_width=True):
-                    st.session_state.artifacts.pop(idx)
-                    st.rerun()
-            with col_a2:
-                if st.button("Copy", key=f"copy_{idx}", use_container_width=True):
-                    st.write("Copied to clipboard")
-            with col_a3:
-                if st.button("Edit", key=f"edit_{idx}", use_container_width=True, type="primary"):
-                    st.info("Edit mode - coming soon")
-    else:
-        st.markdown("""
-        <div style="color: #999999; font-style: italic; text-align: center; padding: 40px;">
-            <div style="font-size: 2em; margin-bottom: 10px;">⚙️</div>
-            <div style="color: #666666;">Artefact Pattern Ready</div>
-            <div style="font-size: 0.8em; margin-top: 10px; opacity: 0.7; color: #999999;">
-                Generated artifacts will appear here
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)  # Close artefact-panel
-    
-    # Clear all artifacts button
-    if st.session_state.artifacts:
-        if st.button("🗑️ Clear All Artefacts", use_container_width=True):
-            st.session_state.artifacts = []
-            st.rerun()
+        
+        st.markdown('</div>', unsafe_allow_html=True)  # Close artefact-panel
+        
+        # Clear all artifacts button
+        if st.session_state.artifacts:
+            if st.button("🗑️ Clear All Artefacts", use_container_width=True, key="clear_all_artifacts"):
+                st.session_state.artifacts = []
+                st.rerun()
     
     st.markdown('</div>', unsafe_allow_html=True)  # Close artefact-wrapper
     st.markdown('</div>', unsafe_allow_html=True)  # Close col-code-wrapper
@@ -2028,5 +2128,16 @@ with st.sidebar:
         st.rerun()
     
     st.markdown("---")
-    st.caption("JARVIS v1.0")
+    st.caption("JARVIS v1.0 - Deployed: 2025-12-19")
     st.caption("Powered by Google Cloud RAG")
+    
+    # Debug: Show deployment info
+    with st.expander("🔧 Debug Info", expanded=True):
+        st.write(f"Messages: {len(st.session_state.messages)}")
+        st.write(f"Artifacts: {len(st.session_state.artifacts)}")
+        st.write(f"RAG API URL: {st.session_state.rag_api_url}")
+        st.write(f"Session State Keys: {len(st.session_state.keys())}")
+        st.write(f"CSS Injected: ✅")
+        st.write(f"Columns Created: ✅")
+        st.write(f"Chat Container: ✅")
+        st.write(f"Artifact Container: ✅")
