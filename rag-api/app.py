@@ -78,6 +78,10 @@ app.add_middleware(
 # Companion-API integration
 COMPANION_API_URL = os.getenv("COMPANION_API_URL", "http://localhost:8081")
 
+# Companion sessions (in-memory for MVP)
+active_companion_sessions: Dict[str, any] = {}
+companion_session_websockets: Dict[str, WebSocket] = {}
+
 # Cost tracking middleware
 @app.middleware("http")
 async def cost_tracking_middleware(request: Request, call_next):
