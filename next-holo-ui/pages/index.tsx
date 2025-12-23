@@ -141,14 +141,22 @@ export default function Home() {
     const check = async () => {
       try {
         const res = await fetch(`${apiBase}/health`);
-        if (!res.ok) throw new Error("health failed");
-        const body = await res.json();
-        setBackendStatus(body.status || "ok");
-      } catch {
+        if (res.ok) {
+          const body = await res.json();
+          setBackendStatus(body.status || "ok");
+          diagnostics.logHealthCheck("rag-api", "ok", body);
+        } else {
+          setBackendStatus("unreachable");
+          diagnostics.logHealthCheck("rag-api", "failed", { status: res.status });
+        }
+      } catch (error) {
         setBackendStatus("unreachable");
+        diagnostics.logConnectionError("rag-api", error, apiBase);
       }
     };
     check();
+    const interval = setInterval(check, 30000); // Check every 30 seconds
+    return () => clearInterval(interval);
   }, [apiBase]);
 
   const renderActivePanel = () => {
