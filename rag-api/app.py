@@ -3511,6 +3511,21 @@ async def create_companion_session():
             detail="Companion functionality not available. Missing dependencies: DEEPGRAM_API_KEY, ELEVENLABS_API_KEY, or companion modules."
         )
     
+    # Check for required API keys before creating session
+    missing_keys = []
+    if not os.getenv("DEEPGRAM_API_KEY"):
+        missing_keys.append("DEEPGRAM_API_KEY")
+    if not os.getenv("ELEVENLABS_API_KEY"):
+        missing_keys.append("ELEVENLABS_API_KEY")
+    if not os.getenv("OPENAI_API_KEY"):
+        missing_keys.append("OPENAI_API_KEY")
+    
+    if missing_keys:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Missing required API keys: {', '.join(missing_keys)}. Please add these environment variables to your Railway deployment."
+        )
+    
     try:
         session_id = str(uuid.uuid4())
         # Create new companion instance (WebSocket will be set when connection is established)
@@ -3523,7 +3538,7 @@ async def create_companion_session():
             "message": "Companion session created. Connect via WebSocket at /companion/ws/{session_id}"
         }
     except ValueError as e:
-        # Missing API keys
+        # Missing API keys (fallback check)
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating companion session: {str(e)}")
