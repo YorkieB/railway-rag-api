@@ -61,6 +61,11 @@ def verify_token(token: str) -> Optional[Dict]:
 
 def hash_password(password: str) -> str:
     """Hash password using bcrypt"""
+    # Ensure password is a string and not longer than 72 bytes (bcrypt limit)
+    if isinstance(password, bytes):
+        password = password.decode('utf-8')
+    # Truncate if necessary (though this shouldn't happen with normal passwords)
+    password = password[:72] if len(password.encode('utf-8')) > 72 else password
     return pwd_context.hash(password)
 
 
