@@ -60,18 +60,34 @@ def verify_token(token: str) -> Optional[Dict]:
 
 def hash_password(password: str) -> str:
     """Hash password using bcrypt"""
+    # Debug logging
+    print(f"DEBUG hash_password: Received password type: {type(password)}, value: {repr(password)}")
+    
     # Ensure password is bytes
     if isinstance(password, str):
-        password = password.encode('utf-8')
+        password_bytes = password.encode('utf-8')
+    elif isinstance(password, bytes):
+        password_bytes = password
+    else:
+        raise ValueError(f"Password must be str or bytes, got {type(password)}")
+    
+    print(f"DEBUG hash_password: Password bytes length: {len(password_bytes)}")
     
     # Truncate to 72 bytes if necessary (bcrypt limit)
-    if len(password) > 72:
-        password = password[:72]
+    if len(password_bytes) > 72:
+        print(f"DEBUG hash_password: Truncating password from {len(password_bytes)} to 72 bytes")
+        password_bytes = password_bytes[:72]
     
     # Generate salt and hash
-    salt = bcrypt.gensalt()
-    hashed = bcrypt.hashpw(password, salt)
-    return hashed.decode('utf-8')
+    try:
+        salt = bcrypt.gensalt()
+        hashed = bcrypt.hashpw(password_bytes, salt)
+        result = hashed.decode('utf-8')
+        print(f"DEBUG hash_password: Successfully hashed password")
+        return result
+    except Exception as e:
+        print(f"DEBUG hash_password: Error during hashing: {e}")
+        raise
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

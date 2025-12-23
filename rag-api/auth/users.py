@@ -42,7 +42,17 @@ class UserManager:
                 raise Exception("User already exists")
         
         user_id = str(uuid.uuid4())
-        hashed_password = hash_password(password)
+        
+        # Debug: Check password type and length
+        print(f"DEBUG: Creating user - email: {email}, password type: {type(password)}, password length: {len(password) if isinstance(password, str) else 'N/A'}")
+        
+        try:
+            hashed_password = hash_password(password)
+            print(f"DEBUG: Password hashed successfully")
+        except Exception as e:
+            print(f"DEBUG: Password hashing failed: {e}")
+            print(f"DEBUG: Password value: {repr(password)}")
+            raise
         
         # First user automatically becomes admin
         if len(users_db) == 0:
