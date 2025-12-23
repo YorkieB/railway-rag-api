@@ -27,6 +27,7 @@ import { Login } from "@/components/Login";
 import { Sidebar, type PanelId } from "@/components/Sidebar";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { apiBaseFromEnv, companionApiBaseFromEnv, queryApi, uploadDocument, speakWithElevenLabs } from "@/lib/api";
+import { diagnostics } from "@/lib/diagnostics";
 import { Artifact, Message } from "@/types";
 
 const defaultApi = apiBaseFromEnv();
@@ -100,6 +101,7 @@ export default function Home() {
         }
       ]);
     } catch (err: any) {
+      diagnostics.logApiError("/query", err, { query: text });
       const assistantMsg: Message = {
         id: newId(),
         role: "assistant",
@@ -120,6 +122,7 @@ export default function Home() {
         { id: newId(), title: `Uploaded ${file.name}`, content: "Document ingested into knowledge base." }
       ]);
     } catch (err: any) {
+      diagnostics.logApiError("/upload", err, { filename: file.name });
       setArtifacts(prev => [
         ...prev,
         { id: newId(), title: "Upload failed", content: err?.message || "Unknown error" }

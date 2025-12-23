@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CompanionClient, CompanionMessage } from "@/lib/companion-api";
 import { companionApiBaseFromEnv } from "@/lib/api";
+import { diagnostics } from "@/lib/diagnostics";
 import { motion } from "framer-motion";
 
 type Props = {
@@ -37,28 +38,34 @@ export function CompanionVoice({ apiBase: companionApiBase, jarvisEnabled = fals
     setErrorMessage(null);
     try {
       const apiBase = companionApiBase || companionApiBaseFromEnv();
-      console.log("Connecting to companion API at:", apiBase);
+      diagnostics.info("companion", `Connecting to companion API at: ${apiBase}`);
       
       // Test connection first
       try {
         const healthCheck = await fetch(`${apiBase}/health`);
         if (!healthCheck.ok) {
-          throw new Error(`Companion API health check failed: ${healthCheck.status}`);
+          const error = new Error(`Companion API health check failed: ${healthCheck.status}`);
+          diagnostics.logHealthCheck("companion-api", "failed", { status: healthCheck.status, url: apiBase });
+          throw error;
         }
+        diagnostics.logHealthCheck("companion-api", "ok", { url: apiBase });
       } catch (healthErr) {
-        throw new Error(`Cannot reach companion API at ${apiBase}. Make sure the companion-api service is running. Error: ${healthErr instanceof Error ? healthErr.message : String(healthErr)}`);
+        const error = new Error(`Cannot reach companion API at ${apiBase}. Make sure the companion-api service is running. Error: ${healthErr instanceof Error ? healthErr.message : String(healthErr)}`);
+        diagnostics.logConnectionError("companion-api", healthErr, apiBase);
+        throw error;
       }
       
       const companionClient = new CompanionClient(apiBase);
       const sid = await companionClient.createSession();
       setSessionId(sid);
+      diagnostics.success("companion", `Session created: ${sid}`);
       
       companionClient.onMessage((msg: CompanionMessage) => {
         handleCompanionMessage(msg);
       });
       
       companionClient.onError((error: Error) => {
-        console.error("Companion error:", error);
+        diagnostics.logWebSocketError("companion-api", error);
         setErrorMessage(error.message || "Connection error occurred");
         setStatus("error");
       });
@@ -67,10 +74,11 @@ export function CompanionVoice({ apiBase: companionApiBase, jarvisEnabled = fals
       setClient(companionClient);
       setStatus("connected");
       setErrorMessage(null);
+      diagnostics.success("companion", "WebSocket connected successfully");
     } catch (err) {
-      console.error("Error starting session:", err);
       const errorMsg = err instanceof Error ? err.message : String(err);
-      setErrorMessage(errorMsg || "Failed to start session. Check console for details.");
+      diagnostics.error("companion", "Failed to start session", { error: errorMsg }, err instanceof Error ? err : undefined);
+      setErrorMessage(errorMsg || "Failed to start session. Check Diagnostics for details.");
       setStatus("error");
     }
   };

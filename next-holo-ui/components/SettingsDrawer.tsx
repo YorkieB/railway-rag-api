@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { DiagnosticsPanel } from "@/components/DiagnosticsPanel";
 
 type Props = {
   open: boolean;
@@ -39,6 +40,7 @@ export function SettingsDrawer({
   onJarvisEnabledChange
 }: Props) {
   const [mounted, setMounted] = useState(false);
+  const [activeTab, setActiveTab] = useState<"settings" | "diagnostics">("settings");
 
   useEffect(() => {
     setMounted(true);
@@ -65,6 +67,34 @@ export function SettingsDrawer({
                 Close
               </button>
             </div>
+
+            {/* Tabs */}
+            <div className="flex gap-2 border-b border-gray-200 mb-4">
+              <button
+                onClick={() => setActiveTab("settings")}
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === "settings"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                Settings
+              </button>
+              <button
+                onClick={() => setActiveTab("diagnostics")}
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === "diagnostics"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                Diagnostics
+              </button>
+            </div>
+
+            {activeTab === "diagnostics" ? (
+              <DiagnosticsPanel apiBase={apiBase} />
+            ) : (
             <div className="space-y-4">
               <div className="border-b border-gray-200 pb-4">
                 <h3 className="text-sm font-semibold text-gray-900 mb-3">Jarvis Activation</h3>
@@ -100,6 +130,7 @@ export function SettingsDrawer({
                 Keys are stored locally in your browser (localStorage). Gemini Live WS uses the backend environment key; client key is optional for client-side calls.
               </p>
             </div>
+            )}
           </motion.div>
         </div>
       )}
