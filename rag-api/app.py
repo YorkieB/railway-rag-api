@@ -542,6 +542,8 @@ def root():
             "/query": "POST - Query the knowledge base",
             "/health": "GET - Health check",
             "/companion-api/health": "GET - Companion-API health check",
+            "/companion/session/create": "POST - Create companion session",
+            "/companion/ws/{session_id}": "WebSocket - Companion real-time interaction",
             "/upload": "POST - Upload and ingest documents",
             "/documents": "GET - List all documents",
             "/multimodal-live/create-session": "POST - Create multimodal live session",
@@ -3485,4 +3487,92 @@ async def list_custom_voices(user_id: str = "default"):
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to list custom voices: {str(e)}")
+
+# Companion API endpoints (integrated into rag-api)
+@app.post("/companion/session/create")
+async def create_companion_session():
+    """
+    Create a new companion session.
+    Returns session_id for WebSocket connection.
+    Note: This is a placeholder - full companion functionality requires companion-api service.
+    """
+    try:
+        session_id = str(uuid.uuid4())
+        active_companion_sessions[session_id] = {
+            "session_id": session_id,
+            "created_at": datetime.now().isoformat(),
+            "status": "created"
+        }
+        return {
+            "session_id": session_id,
+            "status": "created",
+            "message": "Companion session created. Connect via WebSocket at /companion/ws/{session_id}"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating companion session: {str(e)}")
+
+@app.websocket("/companion/ws/{session_id}")
+async def companion_websocket(websocket: WebSocket, session_id: str):
+    """
+    WebSocket endpoint for companion interaction.
+    Note: Full functionality requires companion-api service with Deepgram, ElevenLabs, etc.
+    This is a basic placeholder that accepts connections.
+    """
+    await websocket.accept()
+    
+    if session_id not in active_companion_sessions:
+        await websocket.send_json({
+            "type": "error",
+            "message": "Session not found. Create a session first via POST /companion/session/create"
+        })
+        await websocket.close()
+        return
+    
+    companion_session_websockets[session_id] = websocket
+    
+    try:
+        await websocket.send_json({
+            "type": "session_ready",
+            "session_id": session_id,
+            "status": "connected",
+            "message": "Connected. Note: Full companion features require companion-api service."
+        })
+        
+        # Basic message loop
+        while True:
+            try:
+                data = await websocket.receive_json()
+                msg_type = data.get("type")
+                
+                if msg_type == "audio_chunk":
+                    # Placeholder - would process audio in full companion-api
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Audio processing requires companion-api service with Deepgram/ElevenLabs"
+                    })
+                elif msg_type == "text_input":
+                    # Placeholder - would process text in full companion-api
+                    await websocket.send_json({
+                        "type": "text_chunk",
+                        "text": "Full companion functionality requires companion-api service to be running."
+                    })
+                elif msg_type == "interrupt":
+                    await websocket.send_json({
+                        "type": "interrupted",
+                        "message": "Interrupt received"
+                    })
+            except WebSocketDisconnect:
+                break
+            except Exception as e:
+                await websocket.send_json({
+                    "type": "error",
+                    "message": f"Error processing message: {str(e)}"
+                })
+    except WebSocketDisconnect:
+        pass
+    finally:
+        if session_id in companion_session_websockets:
+            del companion_session_websockets[session_id]
+        if session_id in active_companion_sessions:
+            del active_companion_sessions[session_id]
 
