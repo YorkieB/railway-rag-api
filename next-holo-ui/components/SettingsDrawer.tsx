@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DiagnosticsPanel } from "@/components/DiagnosticsPanel";
+import { UserManagement } from "@/components/UserManagement";
+import { useAuth } from "@/lib/auth";
 
 type Props = {
   open: boolean;
@@ -39,8 +41,9 @@ export function SettingsDrawer({
   jarvisEnabled,
   onJarvisEnabledChange
 }: Props) {
+  const { isAdmin, token } = useAuth();
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<"settings" | "diagnostics">("settings");
+  const [activeTab, setActiveTab] = useState<"settings" | "diagnostics" | "users">("settings");
 
   useEffect(() => {
     setMounted(true);
@@ -90,10 +93,24 @@ export function SettingsDrawer({
               >
                 Diagnostics
               </button>
+              {isAdmin && (
+                <button
+                  onClick={() => setActiveTab("users")}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === "users"
+                      ? "border-primary text-primary"
+                      : "border-transparent text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  User Management
+                </button>
+              )}
             </div>
 
             {activeTab === "diagnostics" ? (
               <DiagnosticsPanel apiBase={apiBase} />
+            ) : activeTab === "users" ? (
+              <UserManagement apiBase={apiBase} token={token || ""} />
             ) : (
             <div className="space-y-4">
               <div className="border-b border-gray-200 pb-4">

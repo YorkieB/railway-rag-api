@@ -23,8 +23,8 @@ import { ChartGenerator } from "@/components/ChartGenerator";
 import { SpotifyPanel } from "@/components/SpotifyPanel";
 import { AudioLiveSession } from "@/components/AudioLiveSession";
 import { VideoLiveSession } from "@/components/VideoLiveSession";
-import { Login } from "@/components/Login";
 import { Sidebar, type PanelId } from "@/components/Sidebar";
+import { useAuth } from "@/lib/auth";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { apiBaseFromEnv, companionApiBaseFromEnv, queryApi, uploadDocument, speakWithElevenLabs } from "@/lib/api";
 import { diagnostics } from "@/lib/diagnostics";
@@ -34,6 +34,7 @@ const defaultApi = apiBaseFromEnv();
 const defaultVoice = "6twLzp3s6IkvvMSxk3oD";
 
 export default function Home() {
+  const { user, isAuthenticated, logout, loading: authLoading } = useAuth();
   const [apiBaseStored, setApiBaseStored, apiReady] = useLocalStorage("holo-api-base", defaultApi);
   const [geminiKey, setGeminiKey] = useLocalStorage("holo-gemini-key", "");
   const [elevenKey, setElevenKey] = useLocalStorage("holo-eleven-key", "");
@@ -208,8 +209,6 @@ export default function Home() {
         return <VideoLiveSession />;
       case "export":
         return <ExportPanel apiBase={apiBase} messages={messages} />;
-      case "login":
-        return <Login />;
       case "settings":
         return (
           <div className="card p-6">
@@ -227,6 +226,20 @@ export default function Home() {
     }
   };
 
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-text-secondary">Loading...</div>
+      </div>
+    );
+  }
+
+  // Redirect handled by _app.tsx, but show message if not authenticated
+  if (!isAuthenticated) {
+    return null;
+  }
+
   return (
     <>
       <Head>
@@ -239,7 +252,7 @@ export default function Home() {
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 space-y-6">
             <Hero onGenerate={scrollToChat} statusText={statusText} />
-            <StatusBar apiBase={apiBase} backendStatus={backendStatus} />
+            <StatusBar apiBase={apiBase} backendStatus={backendStatus} user={user} onLogout={logout} />
             {renderActivePanel()}
           </div>
         </main>

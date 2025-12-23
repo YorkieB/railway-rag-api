@@ -61,7 +61,9 @@ from memory.templates import memory_template_manager
 from models import (
     ImageGenerationRequest, ImageEditRequest, ImageVariationsRequest, ImageAnalysisRequest,
     VideoGenerationRequest, ChartGenerationRequest, SpotifyPlaylistCreateRequest, SmartPlaylistRequest,
-    UserRegisterRequest, UserLoginRequest, ProjectShareRequest
+    UserRegisterRequest, UserLoginRequest, ProjectShareRequest,
+    ForgotPasswordRequest, ResetPasswordRequest, CreateUserRequest, UpdateUserRequest,
+    ResetUserPasswordRequest, SetAdminRequest
 )
 # Using ChromaDB's built-in OpenAI embedding function and OpenAI for answer generation
 
@@ -2731,9 +2733,10 @@ async def login_user(request: UserLoginRequest):
         raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
 
 @app.get("/auth/me")
-async def get_current_user(authorization: Optional[str] = None):
+async def get_current_user(request: Request):
     """Get current user from JWT token"""
     try:
+        authorization = request.headers.get("authorization")
         if not authorization or not authorization.startswith("Bearer "):
             raise HTTPException(status_code=401, detail="Not authenticated")
         
@@ -2753,9 +2756,153 @@ async def get_current_user(authorization: Optional[str] = None):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting user: {str(e)}")
 
+@app.post("/auth/forgot-password")
+async def forgot_password(request: ForgotPasswordRequest):
+    """Request password reset - generates reset token"""
+    try:
+        reset_token = user_manager.generate_password_reset_token(request.email)
+        if not reset_token:
+            # Don't reveal if email exists - return success anyway
+            return {"message": "If the email exists, a password reset link has been sent."}
+        
+        # TODO: Send email with reset link
+        # For now, log the token (admin can manually send link)
+        print(f"Password reset token for {request.email}: {reset_token}")
+        print(f"Reset link: /reset-password?token={reset_token}")
+        
+        return {"message": "If the email exists, a password reset link has been sent."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing password reset: {str(e)}")
+
+@app.post("/auth/reset-password")
+async def reset_password(request: ResetPasswordRequest):
+    """Reset password using reset token"""
+    try:
+        success = user_manager.reset_password_with_token(request.token, request.new_password)
+        if not success:
+            raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+        
+        return {"message": "Password reset successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error resetting password: {str(e)}")
+
+def get_auth_header(request: Request) -> Optional[str]:
+    """Extract authorization header from request"""
+    return request.headers.get("authorization")
+
+def require_admin(request: Request) -> str:
+    """Helper to require admin authentication and return user_id"""
+    authorization = get_auth_header(request)
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = authorization.split(" ")[1]
+    payload = verify_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    user_id = payload.get("sub")
+    if not user_manager.is_admin(user_id):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    return user_id
+
+@app.get("/auth/users")
+async def list_users(request: Request):
+    """List all users (admin only)"""
+    try:
+        require_admin(request)
+        users = user_manager.list_users()
+        return {"users": users, "count": len(users)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error listing users: {str(e)}")
+
+@app.post("/auth/users")
+async def create_user(request_data: CreateUserRequest, request: Request):
+    """Create new user (admin only)"""
+    try:
+        require_admin(request)
+        result = user_manager.create_user(
+            email=request_data.email,
+            password=request_data.password,
+            username=request_data.username,
+            is_admin=request_data.is_admin
+        )
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.put("/auth/users/{user_id}")
+async def update_user(user_id: str, request_data: UpdateUserRequest, request: Request):
+    """Update user (admin only)"""
+    try:
+        require_admin(request)
+        success = user_manager.update_user(user_id, email=request_data.email, username=request_data.username)
+        if not success:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        user = user_manager.get_user(user_id)
+        return user
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete("/auth/users/{user_id}")
+async def delete_user(user_id: str, request: Request):
+    """Delete user (admin only)"""
+    try:
+        require_admin(request)
+        success = user_manager.delete_user(user_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        return {"message": "User deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting user: {str(e)}")
+
+@app.put("/auth/users/{user_id}/password")
+async def reset_user_password(user_id: str, request_data: ResetUserPasswordRequest, request: Request):
+    """Reset user password (admin only)"""
+    try:
+        require_admin(request)
+        success = user_manager.update_user_password(user_id, request_data.new_password)
+        if not success:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        return {"message": "Password reset successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error resetting password: {str(e)}")
+
+@app.put("/auth/users/{user_id}/admin")
+async def set_user_admin(user_id: str, request_data: SetAdminRequest, request: Request):
+    """Set admin status for user (admin only)"""
+    try:
+        require_admin(request)
+        success = user_manager.set_admin(user_id, request_data.is_admin)
+        if not success:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        user = user_manager.get_user(user_id)
+        return user
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error setting admin status: {str(e)}")
+
 @app.get("/users")
-async def list_users():
-    """List all users (admin only - add auth check in production)"""
+async def list_users_legacy():
+    """List all users (legacy endpoint - use /auth/users instead)"""
     try:
         users = user_manager.list_users()
         return {"users": users, "count": len(users)}

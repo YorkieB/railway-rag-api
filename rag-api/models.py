@@ -239,6 +239,41 @@ class UserLoginRequest(BaseModel):
     password: str
 
 
+class ForgotPasswordRequest(BaseModel):
+    """Request model for forgot password"""
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    """Request model for reset password"""
+    token: str
+    new_password: str
+
+
+class CreateUserRequest(BaseModel):
+    """Request model for creating user (admin only)"""
+    email: str
+    password: str
+    username: Optional[str] = None
+    is_admin: bool = False
+
+
+class UpdateUserRequest(BaseModel):
+    """Request model for updating user (admin only)"""
+    email: Optional[str] = None
+    username: Optional[str] = None
+
+
+class ResetUserPasswordRequest(BaseModel):
+    """Request model for resetting user password (admin only)"""
+    new_password: str
+
+
+class SetAdminRequest(BaseModel):
+    """Request model for setting admin status (admin only)"""
+    is_admin: bool
+
+
 class ProjectShareRequest(BaseModel):
     """Request model for sharing project"""
     user_id: str
