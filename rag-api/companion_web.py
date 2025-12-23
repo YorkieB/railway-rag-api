@@ -96,7 +96,10 @@ class WebCompanion:
             self.eleven_client = ElevenLabs(api_key=eleven_key)
             self.http_client = httpx.AsyncClient(timeout=30.0)
         except Exception as e:
-            print("" + f"Error initializing clients: {e}")
+            if COLORAMA_AVAILABLE:
+                print(Fore.RED + f"Error initializing clients: {e}")
+            else:
+                print(f"Error initializing clients: {e}")
             raise
         
         # Deepgram connection
@@ -256,7 +259,10 @@ class WebCompanion:
                 import json
                 await self.websocket.send_json(data)
             except Exception as e:
-                print("" + f"Error sending to browser: {e}")
+                if COLORAMA_AVAILABLE:
+                    print(Fore.RED + f"Error sending to browser: {e}")
+                else:
+                    print(f"Error sending to browser: {e}")
     
     def process_audio_chunk(self, audio_bytes: bytes):
         """Process audio chunk from browser and send to Deepgram (synchronous)."""
@@ -264,7 +270,10 @@ class WebCompanion:
             try:
                 self.dg_connection.send(audio_bytes)
             except Exception as e:
-                print("" + f"Error sending audio to Deepgram: {e}")
+                if COLORAMA_AVAILABLE:
+                    print(Fore.RED + f"Error sending audio to Deepgram: {e}")
+                else:
+                    print(f"Error sending audio to Deepgram: {e}")
                 # Try to send error to browser if websocket available
                 if self.websocket:
                     try:
@@ -282,7 +291,10 @@ class WebCompanion:
     
     async def start_processing_loop(self):
         """Start the main processing loop for transcripts."""
-        print("" + "Starting processing loop...")
+        if COLORAMA_AVAILABLE:
+            print(Fore.GREEN + "Starting processing loop...")
+        else:
+            print("Starting processing loop...")
         
         while True:
             try:
@@ -309,7 +321,10 @@ class WebCompanion:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                print("" + f"Error in processing loop: {e}")
+                if COLORAMA_AVAILABLE:
+                    print(Fore.RED + f"Error in processing loop: {e}")
+                else:
+                    print(f"Error in processing loop: {e}")
     
     async def _ensure_browser_session(self) -> str:
         """Ensure browser session exists, create if needed."""
@@ -322,11 +337,20 @@ class WebCompanion:
                 if response.status_code == 200:
                     data = response.json()
                     self.browser_session_id = data.get("session_id")
-                    print("" + f"Created browser session: {self.browser_session_id}")
+                    if COLORAMA_AVAILABLE:
+                        print(Fore.GREEN + f"Created browser session: {self.browser_session_id}")
+                    else:
+                        print(f"Created browser session: {self.browser_session_id}")
                 else:
-                    print("" + f"Failed to create browser session: {response.status_code}")
+                    if COLORAMA_AVAILABLE:
+                        print(Fore.RED + f"Failed to create browser session: {response.status_code}")
+                    else:
+                        print(f"Failed to create browser session: {response.status_code}")
             except Exception as e:
-                print("" + f"Error creating browser session: {e}")
+                if COLORAMA_AVAILABLE:
+                    print(Fore.RED + f"Error creating browser session: {e}")
+                else:
+                    print(f"Error creating browser session: {e}")
         return self.browser_session_id or ""
     
     async def _search_web(self, query: str) -> str:
@@ -665,7 +689,10 @@ class WebCompanion:
             })
         
         except Exception as e:
-            print("" + f"\nError in generate_and_speak: {e}")
+            if COLORAMA_AVAILABLE:
+                print(Fore.RED + f"\nError in generate_and_speak: {e}")
+            else:
+                print(f"\nError in generate_and_speak: {e}")
             await self.send_to_browser({
                 "type": "error",
                 "message": str(e)
