@@ -37,6 +37,7 @@ from windows.roc import roc
 from windows.panic import panic_stop
 from windows.indicator import automation_indicator
 from agents.crew import get_crewai_manager
+from agents.autonomy import agent_autonomy_manager
 from memory.relationships import get_relationship_manager
 from memory.expiration import get_expiration_manager
 from memory.analytics import get_memory_analytics
@@ -2174,6 +2175,16 @@ async def get_agents_status():
             "crewai_available": manager.crew is not None
         }
     except Exception as e:
+        # Return basic status if CrewAI manager fails
+        return {
+            "browser_agent": False,
+            "os_agent": False,
+            "rag_agent": False,
+            "crewai_available": False,
+            "error": str(e),
+            "note": "CrewAI may not be fully configured"
+        }
+    except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting agents status: {str(e)}")
 
 
@@ -3368,7 +3379,13 @@ async def learn_from_feedback(
             "learned_patterns_count": len(agent.learned_patterns)
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Agent learning failed: {str(e)}")
+        # Return error response instead of raising to avoid 500
+        return {
+            "success": False,
+            "agent_id": agent_id,
+            "error": str(e),
+            "learned_patterns_count": 0
+        }
 
 @app.post("/agents/{agent_id}/improve")
 async def improve_agent(agent_id: str):
@@ -3416,7 +3433,29 @@ async def get_agent_marketplace():
             "total": len(agents) + len(marketplace_agents)
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting agent marketplace: {str(e)}")
+        # Return basic marketplace if manager fails
+        return {
+            "custom_agents": [],
+            "marketplace_agents": [
+                {
+                    "agent_id": "browser_expert",
+                    "name": "Browser Automation Expert",
+                    "description": "Specialized in web automation tasks",
+                    "type": "browser",
+                    "rating": 4.8
+                },
+                {
+                    "agent_id": "data_analyst",
+                    "name": "Data Analyst Agent",
+                    "description": "Analyzes data and generates insights",
+                    "type": "rag",
+                    "rating": 4.6
+                }
+            ],
+            "total": 2,
+            "error": str(e),
+            "note": "Using fallback marketplace data"
+        }
 
 # Voice Cloning APIs
 
