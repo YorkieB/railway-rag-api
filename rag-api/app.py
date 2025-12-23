@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, WebSocket, WebSocketDisconnect, Request
+import asyncio
 from fastapi.responses import JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -77,6 +78,15 @@ app.add_middleware(
 
 # Companion-API integration
 COMPANION_API_URL = os.getenv("COMPANION_API_URL", "http://localhost:8081")
+
+# Import companion functionality
+try:
+    from companion_web import WebCompanion
+    COMPANION_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Companion functionality not available: {e}")
+    COMPANION_AVAILABLE = False
+    WebCompanion = None
 
 # Companion sessions (in-memory for MVP)
 active_companion_sessions: Dict[str, any] = {}
@@ -3494,29 +3504,35 @@ async def create_companion_session():
     """
     Create a new companion session.
     Returns session_id for WebSocket connection.
-    Note: This is a placeholder - full companion functionality requires companion-api service.
     """
+    if not COMPANION_AVAILABLE:
+        raise HTTPException(
+            status_code=503,
+            detail="Companion functionality not available. Missing dependencies: DEEPGRAM_API_KEY, ELEVENLABS_API_KEY, or companion modules."
+        )
+    
     try:
         session_id = str(uuid.uuid4())
-        active_companion_sessions[session_id] = {
-            "session_id": session_id,
-            "created_at": datetime.now().isoformat(),
-            "status": "created"
-        }
+        # Create new companion instance (WebSocket will be set when connection is established)
+        companion = WebCompanion(websocket=None)
+        active_companion_sessions[session_id] = companion
+        
         return {
             "session_id": session_id,
             "status": "created",
             "message": "Companion session created. Connect via WebSocket at /companion/ws/{session_id}"
         }
+    except ValueError as e:
+        # Missing API keys
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating companion session: {str(e)}")
 
 @app.websocket("/companion/ws/{session_id}")
 async def companion_websocket(websocket: WebSocket, session_id: str):
     """
-    WebSocket endpoint for companion interaction.
-    Note: Full functionality requires companion-api service with Deepgram, ElevenLabs, etc.
-    This is a basic placeholder that accepts connections.
+    WebSocket endpoint for real-time companion interaction.
+    Handles browser audio streams and streams back TTS audio.
     """
     await websocket.accept()
     
@@ -3528,49 +3544,83 @@ async def companion_websocket(websocket: WebSocket, session_id: str):
         await websocket.close()
         return
     
+    companion = active_companion_sessions[session_id]
+    companion.websocket = websocket  # Set WebSocket for companion
     companion_session_websockets[session_id] = websocket
     
     try:
+        # Initialize Deepgram connection (now that WebSocket is set)
+        await companion.initialize_deepgram()
+        
+        # Send session ready message
         await websocket.send_json({
             "type": "session_ready",
             "session_id": session_id,
-            "status": "connected",
-            "message": "Connected. Note: Full companion features require companion-api service."
+            "status": "connected"
         })
         
-        # Basic message loop
+        # Start companion processing loop
+        companion.processing_task = asyncio.create_task(companion.start_processing_loop())
+        
+        # Main message loop - receive audio/text from browser
         while True:
             try:
+                # Receive message from browser
                 data = await websocket.receive_json()
                 msg_type = data.get("type")
                 
                 if msg_type == "audio_chunk":
-                    # Placeholder - would process audio in full companion-api
-                    await websocket.send_json({
-                        "type": "error",
-                        "message": "Audio processing requires companion-api service with Deepgram/ElevenLabs"
-                    })
+                    # Browser sent audio chunk - forward to Deepgram
+                    audio_data = data.get("audio", "")
+                    if audio_data:
+                        try:
+                            # Decode base64 audio (Int16 PCM format)
+                            audio_bytes = base64.b64decode(audio_data)
+                            # Process audio chunk (send to Deepgram)
+                            companion.process_audio_chunk(audio_bytes)
+                        except Exception as e:
+                            print(f"Error processing audio chunk: {e}")
+                            await websocket.send_json({
+                                "type": "error",
+                                "message": f"Audio processing error: {str(e)}"
+                            })
+                
                 elif msg_type == "text_input":
-                    # Placeholder - would process text in full companion-api
-                    await websocket.send_json({
-                        "type": "text_chunk",
-                        "text": "Full companion functionality requires companion-api service to be running."
-                    })
+                    # Browser sent text input directly
+                    text = data.get("text", "")
+                    if text:
+                        await companion.transcript_queue.put(text)
+                
                 elif msg_type == "interrupt":
-                    await websocket.send_json({
-                        "type": "interrupted",
-                        "message": "Interrupt received"
-                    })
+                    # Browser requested interruption
+                    if companion.current_playback_task and not companion.current_playback_task.done():
+                        companion.current_playback_task.cancel()
+                        await websocket.send_json({
+                            "type": "interrupted",
+                            "message": "AI response interrupted"
+                        })
+                
             except WebSocketDisconnect:
                 break
             except Exception as e:
+                print(f"Error in companion WebSocket: {e}")
                 await websocket.send_json({
                     "type": "error",
-                    "message": f"Error processing message: {str(e)}"
+                    "message": f"Error: {str(e)}"
                 })
     except WebSocketDisconnect:
         pass
+    except Exception as e:
+        print(f"Companion WebSocket error: {e}")
     finally:
+        # Cleanup
+        if companion.processing_task:
+            companion.processing_task.cancel()
+        if companion.dg_connection:
+            try:
+                companion.dg_connection.finish()
+            except:
+                pass
         if session_id in companion_session_websockets:
             del companion_session_websockets[session_id]
         if session_id in active_companion_sessions:

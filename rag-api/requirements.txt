@@ -34,3 +34,5 @@ pytesseract>=0.3.10
 pdfplumber>=0.10.0
 langdetect>=1.0.9
 slack-sdk>=3.23.0
+colorama>=0.4.6
+python-dotenv>=1.0.0
