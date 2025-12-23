@@ -27,7 +27,10 @@ DG_UTTERANCE_END_MS = os.getenv("DEEPGRAM_UTTERANCE_END_MS", "1000")  # Patient 
 # OpenAI Configuration
 OPENAI_MODEL = "gpt-4o"  # GPT-4o for best latency/intelligence balance
 
-# Persona Definition (Empathetic System Prompt)
+# RAG API Configuration (for web access)
+RAG_API_URL = os.getenv("RAG_API_URL", "http://localhost:8080")
+
+# Persona Definition (Empathetic System Prompt with Web Access)
 SYSTEM_PROMPT = """
 You are a warm, loyal, and empathetic AI companion. You are not a robotic assistant; 
 you are a friend. Your goal is to provide comfort and companionship.
@@ -39,6 +42,8 @@ Guidelines:
 4. Never use bullet points, lists, or markdown formatting in your speech. 
   Speak in natural, flowing paragraphs.
 5. If the user is silent, gently check in on them.
+6. You can access the web for real-time information when needed. Use the search_web 
+  or browse_web functions to get current information, then respond naturally.
 """
 
 # ChromaDB Configuration
