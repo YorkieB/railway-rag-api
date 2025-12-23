@@ -19,6 +19,7 @@ export function CompanionVoice({ apiBase: companionApiBase, jarvisEnabled = fals
   const [retrievedMemories, setRetrievedMemories] = useState<string[]>([]);
   const [showMemories, setShowMemories] = useState(false);
   const [memoryCount, setMemoryCount] = useState(0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioQueueRef = useRef<Array<string>>([]);
@@ -33,8 +34,21 @@ export function CompanionVoice({ apiBase: companionApiBase, jarvisEnabled = fals
 
   const startSession = async () => {
     setStatus("connecting");
+    setErrorMessage(null);
     try {
       const apiBase = companionApiBase || companionApiBaseFromEnv();
+      console.log("Connecting to companion API at:", apiBase);
+      
+      // Test connection first
+      try {
+        const healthCheck = await fetch(`${apiBase}/health`);
+        if (!healthCheck.ok) {
+          throw new Error(`Companion API health check failed: ${healthCheck.status}`);
+        }
+      } catch (healthErr) {
+        throw new Error(`Cannot reach companion API at ${apiBase}. Make sure the companion-api service is running. Error: ${healthErr instanceof Error ? healthErr.message : String(healthErr)}`);
+      }
+      
       const companionClient = new CompanionClient(apiBase);
       const sid = await companionClient.createSession();
       setSessionId(sid);
@@ -45,14 +59,18 @@ export function CompanionVoice({ apiBase: companionApiBase, jarvisEnabled = fals
       
       companionClient.onError((error: Error) => {
         console.error("Companion error:", error);
+        setErrorMessage(error.message || "Connection error occurred");
         setStatus("error");
       });
       
       await companionClient.connect(sid);
       setClient(companionClient);
       setStatus("connected");
+      setErrorMessage(null);
     } catch (err) {
       console.error("Error starting session:", err);
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      setErrorMessage(errorMsg || "Failed to start session. Check console for details.");
       setStatus("error");
     }
   };
@@ -227,9 +245,23 @@ export function CompanionVoice({ apiBase: companionApiBase, jarvisEnabled = fals
         </span>
       </div>
 
+      {errorMessage && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-2">
+          <p className="text-sm text-red-800">
+            <strong>Error:</strong> {errorMessage}
+          </p>
+          <p className="text-xs text-red-600 mt-1">
+            Make sure the companion-api service is running and accessible. Check Settings for the correct API URL.
+          </p>
+        </div>
+      )}
+
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-2">
         <p className="text-xs text-blue-800">
           💬 <strong>Say &quot;Hi Jarvis&quot;</strong> to start a conversation. Jarvis can access the web for live information and will respond naturally.
+        </p>
+        <p className="text-xs text-blue-600 mt-1">
+          API: {companionApiBase || companionApiBaseFromEnv()}
         </p>
       </div>
 

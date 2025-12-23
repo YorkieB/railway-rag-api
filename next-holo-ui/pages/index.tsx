@@ -162,7 +162,7 @@ export default function Home() {
           </div>
         );
       case "companion-voice":
-        return <CompanionVoice apiBase={companionApiBaseFromEnv()} jarvisEnabled={jarvisEnabled} />;
+        return <CompanionVoice apiBase={apiBase} jarvisEnabled={jarvisEnabled} />;
       case "voice-video":
         return <VoiceVideo apiBase={apiBase} elevenLabsKey={elevenKey} elevenLabsVoice={elevenVoice} ttsEnabled={ttsEnabled} />;
       case "screen-share":
