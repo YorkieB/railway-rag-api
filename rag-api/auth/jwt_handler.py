@@ -7,10 +7,9 @@ import os
 import jwt
 from datetime import datetime, timedelta
 from typing import Optional, Dict
-from passlib.context import CryptContext
+import bcrypt
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing - using bcrypt directly
 
 # JWT secret key
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")
@@ -61,20 +60,34 @@ def verify_token(token: str) -> Optional[Dict]:
 
 def hash_password(password: str) -> str:
     """Hash password using bcrypt"""
-    # Ensure password is a string
-    if isinstance(password, bytes):
-        password = password.decode('utf-8')
+    # Ensure password is bytes
+    if isinstance(password, str):
+        password = password.encode('utf-8')
     
-    # Convert to bytes to check actual byte length (bcrypt limit is 72 bytes)
-    password_bytes = password.encode('utf-8')
-    if len(password_bytes) > 72:
-        # Truncate to 72 bytes (not characters!)
-        password = password_bytes[:72].decode('utf-8', errors='ignore')
+    # Truncate to 72 bytes if necessary (bcrypt limit)
+    if len(password) > 72:
+        password = password[:72]
     
-    return pwd_context.hash(password)
+    # Generate salt and hash
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password, salt)
+    return hashed.decode('utf-8')
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify password against hash"""
-    return pwd_context.verify(plain_password, hashed_password)
+    # Ensure both are bytes
+    if isinstance(plain_password, str):
+        plain_password = plain_password.encode('utf-8')
+    if isinstance(hashed_password, str):
+        hashed_password = hashed_password.encode('utf-8')
+    
+    # Truncate password to 72 bytes if necessary
+    if len(plain_password) > 72:
+        plain_password = plain_password[:72]
+    
+    try:
+        return bcrypt.checkpw(plain_password, hashed_password)
+    except Exception:
+        return False
 
