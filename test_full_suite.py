@@ -5,6 +5,7 @@ Tests all endpoints including V3 features
 import requests
 import json
 import sys
+import os
 import io
 from typing import Dict, Optional
 
@@ -13,7 +14,7 @@ if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
-BASE_URL = "http://localhost:8080"
+BASE_URL = os.getenv("API_BASE_URL", "https://railway-rag-api-production.up.railway.app")
 test_results = []
 passed = 0
 failed = 0
