@@ -1,0 +1,264 @@
+---
+description: Error handling patterns, retry logic, recovery strategies, and Plan-Act-Verify-Recover pattern for browser automation
+alwaysApply: false
+---
+
+# Error Handling & Recovery Patterns
+
+## Plan-Act-Verify-Recover Pattern (Browser Automation)
+
+### Overview
+The Plan-Act-Verify-Recover pattern is **REQUIRED** for all browser automation actions. This pattern ensures reliability and prevents hallucination.
+
+### Pattern Steps
+
+#### 1. Plan
+- **Action**: Generate detailed action sequence
+- **Output**: Show plan to user in ASSIST mode
+- **Rule**: Never proceed without explicit plan
+
+#### 2. Act
+- **Action**: Execute single step (not multiple steps at once)
+- **Rule**: One action at a time, then verify before proceeding
+
+#### 3. Verify
+- **Action**: Capture screenshot, analyze state via vision model
+- **Success**: If state matches expected → proceed to next step
+- **Mismatch**: If state doesn't match → admit "I clicked but nothing changed. Let me try again."
+- **Not Found**: If element not found → trigger Uncertainty protocol
+- **Rule**: Never assume action succeeded; always verify visually
+
+#### 4. Recover
+- **Action**: Retry alternate approach or escalate to user
+- **Options**:
+  - Retry with different selector
+  - Use vision fallback if AX Tree insufficient
+  - Ask user for clarification
+  - Escalate to manual intervention
+
+### Implementation Location
+- **File**: `rag-api/browser/agent_loop.py` (future)
+- **Functions**: `plan()`, `act()`, `verify()`, `recover()`
+
+## Retry Logic & Exponential Backoff
+
+### Network Timeout Handling
+- **Timeout**: LLM request hangs > 10 seconds
+- **Response**: "Sorry, connection issue. Let me retry."
+- **Strategy**: Automatic retry with exponential backoff
+- **Max Retries**: 3 attempts
+- **After 3 Fails**: Offer to pause & resume
+
+### Retry Pattern
+```python
+# Pseudo-code pattern
+max_retries = 3
+base_delay = 1.0  # seconds
+
+for attempt in range(max_retries):
+    try:
+        result = await action()
+        return result
+    except TimeoutError:
+        if attempt < max_retries - 1:
+            delay = base_delay * (2 ** attempt)  # Exponential backoff
+            await asyncio.sleep(delay)
+            continue
+        else:
+            # After 3 fails, escalate
+            return {"error": "Connection issue. Would you like to pause and resume?"}
+```
+
+## Error Scenarios & Recovery
+
+### STT (Speech-to-Text) Errors
+
+#### Low Confidence STT
+- **Trigger**: Deepgram confidence < 0.5
+- **Response**: "I didn't catch that—could you repeat?"
+- **Action**: Wait for user to re-speak; wait for high-confidence final
+- **Rule**: Never proceed with low-confidence transcript
+
+#### Audio Dropped / Poor STT
+- **Trigger**: Deepgram sends low-confidence interim result (< 0.5)
+- **Response**: "I didn't catch that—could you repeat?"
+- **Action**: User re-speaks; system waits for high-confidence final
+- **Rule**: Never invent transcribed text that Deepgram didn't provide
+
+### LLM Errors
+
+#### Empty Response
+- **Trigger**: LLM response empty (no tokens after 5 sec)
+- **Response**: "Connection issue. Retrying..."
+- **Action**: Automatic retry with exponential backoff
+- **Rule**: Never proceed with empty response
+
+#### Network Timeout
+- **Trigger**: LLM request hangs > 10 seconds
+- **Response**: "Sorry, connection issue. Let me retry."
+- **Action**: Retry with exponential backoff (max 3 attempts)
+- **After 3 Fails**: Offer to pause & resume
+
+### Vision Analysis Errors
+
+#### Low Confidence Vision
+- **Trigger**: Vision model confidence < 0.6
+- **Response**: "I see something, but I'm not confident. Can you describe it?"
+- **Action**: User provides text description; Jarvis proceeds with clarified intent
+- **Rule**: Never proceed with low-confidence vision analysis
+
+#### Unclear UI State
+- **Trigger**: LS3 screenshot analyzed, but detected UI unclear (confidence < 0.6)
+- **Response**: "I see a button, but I'm not sure what it does. Can you describe it?"
+- **Action**: Wait for user clarification
+- **Rule**: Never guess UI elements
+
+### Browser Automation Errors
+
+#### Element Not Found
+- **Trigger**: Element not in AX Tree after Accessibility Tree check
+- **Response**: Uncertainty protocol - "I couldn't find that element. Could you point it out?"
+- **Action**: Use vision fallback or ask user
+- **Rule**: Never invent selectors; never guess coordinates
+
+#### State Mismatch After Action
+- **Trigger**: Screenshot shows state doesn't match expected after action
+- **Response**: "I clicked but nothing changed. Let me try again."
+- **Action**: Retry with alternate approach or escalate
+- **Rule**: Always verify state after action
+
+#### Multiple Dialogs Open
+- **Trigger**: User says "Click OK" but multiple dialogs are open
+- **Response**: "I see multiple dialog boxes. Which one?"
+- **Action**: Wait for user clarification
+- **Rule**: Never blind-click; always trigger Uncertainty protocol
+
+### Budget Exhaustion
+
+#### Daily Limit Reached
+- **Trigger**: Daily audio tokens exceed limit during call
+- **Response**: "Your daily minutes limit reached. Session paused."
+- **Action**: User can resume next calendar day or upgrade plan
+- **Rule**: Hard halt at 100%; no exceptions
+
+#### Approaching Limit
+- **Trigger**: At 80% of daily budget
+- **Response**: "Approaching daily audio limit. [X min remaining]"
+- **Action**: Continue with warning; auto-downgrade frame rate (vision)
+- **Rule**: Warn but don't halt until 100%
+
+### Ambiguous User Intent
+
+#### Unclear Request
+- **Trigger**: User says "move it" without referencing object
+- **Response**: "Move what? Could you point at the file or tell me the name?"
+- **Action**: Wait for clarification
+- **Rule**: Never guess user intent; always ask for clarification
+
+#### Multiple Interpretations
+- **Trigger**: Request has multiple possible interpretations
+- **Response**: Ask clarifying question
+- **Action**: Wait for user response
+- **Rule**: Better to pause and ask than to hallucinate
+
+## Live Session Error Handling
+
+### When Jarvis May Speak
+- ✅ User finishes speaking (Deepgram detects utterance end)
+- ✅ LLM has generated at least 3 tokens (start audio early, don't wait for full response)
+- ✅ User explicitly prompts ("What do you think?", "Go ahead")
+- ✅ Timeout after silence (utterance_end_ms expired; default 1000ms)
+
+### When Jarvis Must Stay Silent
+- ❌ Audio quality degraded (network packet loss > 5%)
+- ❌ STT confidence < 0.5 (awaiting re-speak from user)
+- ❌ Budget exhausted (daily audio minutes capped)
+- ❌ Session paused or in error state
+
+### Barge-In Handling
+- **Trigger**: User interrupts Jarvis while speaking
+- **Detection**: Monitor Deepgram `speechstarted` events during TTS playback
+- **Action**: Cancel audio playback IMMEDIATELY (< 50ms)
+- **Steps**:
+  1. Clear ElevenLabs TTS queue
+  2. Reset LLM generation task
+  3. Ready for new user input
+- **Rule**: Barge-in latency must be < 50ms (imperceptible)
+
+## OS Automation Error Handling
+
+### Permission Denied
+- **Trigger**: Action requires admin rights but user doesn't have them
+- **Response**: "Permission denied. Admin rights required."
+- **Action**: Automation halts; file/operation untouched
+- **Rule**: Never attempt to bypass permissions
+
+### Blocked Action
+- **Trigger**: Action is on blocklist (password managers, banking, etc.)
+- **Response**: "Action blocked: [reason]. [App] is off-limits for security."
+- **Action**: Automation halts; app NOT launched
+- **Rule**: Never override blocklist
+
+### Region-of-Control Violation
+- **Trigger**: Element is outside specified Region-of-Control window
+- **Response**: "That element is outside the allowed window. Could you clarify?"
+- **Action**: Ignore out-of-ROC elements; ask user to clarify
+- **Rule**: Never click outside Region-of-Control
+
+### Panic Stop
+- **Trigger**: User presses Ctrl+Alt+J during automation
+- **Action**: Automation stops immediately; partial operations rolled back
+- **Response Time**: < 500ms
+- **Steps**:
+  1. Cancel current action
+  2. Drop queued actions
+  3. Log PANIC_STOP event
+- **Rule**: Panic stop must be immediate and reliable
+
+## Uncertainty Protocol Triggers
+
+### Explicit Uncertainty Responses
+- **STT final confidence < 0.5**: "I didn't catch that. Could you repeat?"
+- **LLM response empty**: "Connection issue. Retrying..."
+- **Vision analysis confidence < 0.6**: "I see something, but I'm not confident. Can you describe it?"
+- **Budget exhausted**: "Daily limit reached. Session paused."
+- **Element not found**: "I couldn't find that element. Could you point it out?"
+
+### Forbidden Behaviors (Error Handling)
+- ❌ **Never invent** transcribed text that Deepgram didn't provide
+- ❌ **Never proceed** with low-confidence actions (< 0.6) without user confirmation
+- ❌ **Never silently fail** (e.g., audio playing to wrong device) without alerting user
+- ❌ **Never hedge** ("might be", "probably") instead of clear "Uncertain" statement
+- ❌ **Never guess** user intent when ambiguous
+
+## Recovery Strategies
+
+### Automatic Recovery
+- **Network timeout**: Retry with exponential backoff (max 3 attempts)
+- **Temporary API error**: Retry with backoff
+- **State mismatch**: Retry action with alternate approach
+
+### User-Assisted Recovery
+- **Low confidence STT**: Ask user to repeat
+- **Ambiguous intent**: Ask clarifying question
+- **Element not found**: Ask user to point out element
+- **Permission denied**: Inform user, halt automation
+
+### Escalation
+- **After 3 retry failures**: Offer to pause & resume
+- **Critical errors**: Escalate to user for manual intervention
+- **Budget exhausted**: Pause session, inform user of options
+
+## Implementation Checklist
+
+When implementing error handling:
+1. ✅ **Always verify** state after action (screenshot + vision)
+2. ✅ **Never proceed** with low-confidence results (< 0.6)
+3. ✅ **Always retry** network errors with exponential backoff
+4. ✅ **Always ask** for clarification when uncertain
+5. ✅ **Always surface** errors to user (never silently fail)
+6. ✅ **Always log** errors with context for debugging
+7. ✅ **Always respect** budget limits (hard halt at 100%)
+8. ✅ **Always handle** barge-in immediately (< 50ms)
+9. ✅ **Always verify** permissions before OS actions
+10. ✅ **Always respect** blocklists and safety constraints

@@ -1,0 +1,76 @@
+---
+description: Forbidden patterns and libraries that must not be used in this codebase
+alwaysApply: true
+---
+
+# Forbidden Patterns & Libraries
+
+## ❌ Forbidden Patterns
+
+### 1. Hardcoded API Keys
+- **Rule**: Never commit API keys in code
+- **Current**: ✅ Uses `os.getenv()` / `process.env`
+- **Location**: All services use environment variables
+- **Violation**: Any hardcoded API key, password, or secret in source code
+
+### 2. Synchronous Blocking Operations in Async Context
+- **Rule**: Avoid blocking I/O in async functions
+- **Current**: ⚠️ Some functions may be synchronous but called from async context
+- **Note**: Should be wrapped in `asyncio.run_in_executor()` if performance issues arise
+- **Violation**: Using `time.sleep()`, blocking file I/O, or synchronous network calls in async functions
+
+### 3. Global State Mutation Without Locks
+- **Rule**: Use thread-safe patterns for shared state
+- **Current**: ⚠️ `active_sessions` dict in `rag-api` and `companion-api` - not thread-safe
+- **Note**: Acceptable for single-instance deployment, but should use locks for multi-instance
+- **Violation**: Mutating global dictionaries/lists without locks in multi-threaded contexts
+
+### 4. CORS Wildcard in Production
+- **Rule**: Restrict CORS origins in production
+- **Current**: ⚠️ `allow_origins=["*"]` in both services
+- **Note**: Should be restricted to specific domains in production
+- **Violation**: Using `allow_origins=["*"]` in production deployments
+
+### 5. No Input Validation on WebSocket Messages
+- **Rule**: Validate all WebSocket message types and payloads
+- **Current**: ⚠️ Basic type checking with `data.get("type")` but no Pydantic validation
+- **Note**: Should add Pydantic models for WebSocket messages
+- **Violation**: Processing WebSocket messages without validating structure and types
+
+## ❌ Forbidden Libraries
+
+### 1. Qdrant Client (Legacy)
+- **Status**: Legacy - not used in main app
+- **Current**: ✅ Main app uses ChromaDB, not Qdrant
+- **Action**: Do not use Qdrant - use ChromaDB instead
+
+### 2. Streamlit (Legacy UI)
+- **Status**: Legacy UI - not primary frontend
+- **Current**: ✅ Main frontend is Next.js (`next-holo-ui`)
+- **Action**: Do not create new Streamlit UIs - use Next.js
+
+### 3. Google Generative AI (Gemini)
+- **Status**: Replaced with OpenAI
+- **Current**: ✅ Using OpenAI GPT-4o for LLM, embeddings, and vision
+- **Action**: Do not use `google-generativeai` - use OpenAI instead
+
+### 4. Google Cloud BigQuery
+- **Status**: Replaced with ChromaDB
+- **Current**: ✅ Using ChromaDB for vector storage
+- **Action**: Do not use BigQuery - use ChromaDB instead
+
+### 5. PyAudio (Web Version)
+- **Status**: Only for local testing, not web version
+- **Current**: ✅ Web version (`companion_web.py`) doesn't use PyAudio
+- **Note**: Required for local testing only, not for web/cloud deployment
+- **Action**: Do not add PyAudio to web/cloud services
+
+## General Forbidden Practices
+
+- ❌ **Never commit API keys** - use environment variables
+- ❌ **Never use blocking I/O in async functions** without executor
+- ❌ **Never mutate global state** without thread safety in multi-instance deployments
+- ❌ **Never use CORS wildcard** in production
+- ❌ **Never process WebSocket messages** without validation
+- ❌ **Never use deprecated libraries** (Gemini, BigQuery, Qdrant)
+- ❌ **Never create new Streamlit UIs** - use Next.js frontend

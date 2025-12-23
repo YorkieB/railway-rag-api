@@ -1,0 +1,22 @@
+# Windows-specific requirements
+# Use this if pipwin method doesn't work
+# First install: pip install pipwin
+# Then: pipwin install pyaudio
+
+# Core dependencies (same as requirements.txt)
+deepgram-sdk>=3.0.0,<4.0.0
+openai>=1.0.0
+elevenlabs>=1.0.0
+chromadb>=0.4.0
+numpy>=1.24.0
+python-dotenv>=1.0.0
+colorama>=0.4.6
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+websockets>=12.0
+pydantic>=2.0.0
+
+# Note: pyaudio should be installed via pipwin on Windows:
+# pip install pipwin
+# pipwin install pyaudio
+

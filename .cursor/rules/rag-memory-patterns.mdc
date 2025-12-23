@@ -1,0 +1,202 @@
+---
+description: RAG and Memory system implementation patterns - uncertainty protocol, context budget, cost tracking, and memory privacy rules
+alwaysApply: false
+---
+
+# RAG & Memory Implementation Patterns
+
+## Uncertainty Protocol Implementation
+
+### When to Return Uncertain Response
+- **RAG retrieval fails**: No relevant chunks found, or score below threshold
+- **Low confidence**: Retrieval score below `RAG_CONFIDENCE_THRESHOLD=0.6`
+- **Empty retrieval**: No documents match the query
+
+### Structured Uncertain Response Format
+```python
+{
+    "answer": "I don't have information about X in your knowledge base.",
+    "uncertain": True,
+    "suggestions": ["search the web", "ask you", "check documents again"]
+}
+```
+
+### Implementation Rules
+- **NEVER guess or fabricate** when retrieval is empty
+- **ALWAYS cite sources** when available (required for scoring)
+- **Citation scoring**: 10 points with citation, 7 points without citation, 0 points for hallucination
+- **EXPLICITLY state** when information is not available
+- **Offer actionable alternatives** when information is unavailable
+- **Show source snippets** in response (document name, chunk index, score)
+
+## Context Budget Enforcement
+
+### ContextBudgetEnforcer Pattern
+- **Location**: `rag-api/budget.py`
+- **Configuration**: 
+  - `MAX_CONTEXT_TOKENS=100000` (default)
+  - `WARN_THRESHOLD=0.8` (warn at 80% utilization)
+- **Components to Track**:
+  - System prompt tokens
+  - Conversation history tokens
+  - RAG document tokens
+  - Memory tokens
+
+### Implementation Rules
+- Track tokens per component before LLM call
+- Truncate/summarize history when over budget
+- Warn at 80% utilization (return warning in response)
+- Hard limit at 100% (reject query or truncate aggressively)
+
+## Cost Tracking Pattern
+
+### CostTracker Pattern
+- **Location**: `rag-api/cost.py`
+- **Daily Budgets** (per-user, configurable):
+  - Text tokens: 500K/day
+  - Vision tokens: 50K/day
+  - Audio minutes: 60/day
+  - Dollars: $10/day
+
+### Implementation Rules
+- **Pre-query estimation**: Estimate tokens before API call
+- **Post-query tracking**: Update daily budget after each request
+- **Warning at 80%**: Return `{"warning": "Approaching daily limit"}` in response
+- **Hard halt at 100%**: Return `{"error": "Daily limit reached"}` and reject request
+- **Response headers**: Include `X-Cost-Tokens` and `X-Cost-Dollars` in all responses
+- **Accuracy**: Track costs within 5% of actual API costs
+
+## Model Routing Pattern (Future)
+
+### Model Router Pattern
+- **Location**: `rag-api/model_router.py` (future implementation)
+- **Purpose**: Select fast vs best models based on task type and budget
+- **Task Types**:
+  - **Planning**: Fast model (lower cost, acceptable quality)
+  - **Deep reasoning**: Best model (higher cost, better quality)
+  - **Vision**: Vision-enabled model (GPT-4o with vision)
+  - **Simple queries**: Fast model (cost optimization)
+
+### Routing Rules
+- **Select model** based on task complexity and current budget
+- **Downgrade model** when budget at 80% (use faster/cheaper model)
+- **Upgrade model** when budget allows and task requires it
+- **Performance targets**: Balance cost vs quality based on user needs
+- **Default**: Use best model unless budget constraints require downgrade
+
+### Implementation Notes
+- Currently using GPT-4o for all tasks (consistent, high quality)
+- Future: May add model routing for cost optimization
+- Rule: Never sacrifice quality below acceptable threshold, even for cost savings
+
+## Memory System Patterns
+
+### MemoryItem Model
+```python
+class MemoryItem(BaseModel):
+    id: str
+    user_id: str
+    project_id: Optional[str]  # None = global memory
+    content: str
+    memory_type: str  # "fact", "preference", "decision"
+    created_at: datetime
+    updated_at: datetime
+```
+
+### Memory Storage Interface
+- **Abstract base class**: `MemoryStorage` with CRUD methods
+- **Search method**: Semantic search using embeddings
+- **Storage**: ChromaDB (or Firestore if preferred)
+
+### Memory Privacy Rules
+- **Private session flag**: When `private_session=True`, NO memory writes allowed
+- **Audit trail**: Log all memory operations (create, update, delete)
+- **Respect privacy**: Never write to memory in private sessions
+
+### Memory Integration in RAG
+1. **Retrieve relevant memories** before RAG query (semantic search)
+2. **Inject memories into LLM context** alongside RAG documents
+3. **Show memory citations** in response (if memory was used)
+4. **Optional memory updates**: Only if user explicitly requests (user-controlled)
+
+## RAG Response Structure
+
+### Successful RAG Response
+```python
+{
+    "answer": "Based on your documents...",
+    "sources": [
+        {
+            "document_name": "Q3 Financials",
+            "chunk_index": 3,
+            "text": "...",
+            "score": 0.85
+        }
+    ],
+    "uncertain": False
+}
+```
+
+### Uncertain RAG Response
+```python
+{
+    "answer": "I don't have information about X in your knowledge base.",
+    "sources": [],
+    "uncertain": True,
+    "suggestions": ["search the web", "ask you", "check documents again"]
+}
+```
+
+### Memory-Enhanced Response
+```python
+{
+    "answer": "Based on your documents and your previous preference...",
+    "sources": [...],
+    "memories_used": [
+        {
+            "id": "mem_123",
+            "content": "User prefers Slack notifications",
+            "type": "preference"
+        }
+    ],
+    "uncertain": False
+}
+```
+
+## Evaluation Requirements
+
+### RAG/Memory Eval Harness
+- **Location**: `tests/rag_memory_eval/`
+- **Test Categories**:
+  - RAG success (5 prompts)
+  - Empty retrieval (5 prompts) - **Critical**: Must test uncertainty protocol
+  - Memory recall (5 prompts)
+  - Private session (3 prompts) - **Critical**: Must test privacy
+  - Long chat (3 prompts)
+  - Ambiguous queries (4 prompts) - **Critical**: Must test clarification requests
+
+### Scoring Rubric
+- **10 points**: Exact retrieval with citation, or explicit uncertainty admission
+  - Must include: document name, chunk index, and score in response
+  - Citation format: `Source: {document_name} (chunk {chunk_index})`
+- **7 points**: Correct but no source cited (missing citation reduces score)
+- **5 points**: Admits lack but vague suggestion
+- **0 points**: Hallucinated or wrong answer (fabricated information)
+
+### Regression Gates
+- **Average score**: Must maintain ≥ 7.0
+- **Hallucination rate**: Must not increase (tolerance: 50% increase allowed)
+- **Critical prompts**: All must score ≥ 7.0
+- **Score drop**: Blocks merge if >10% drop from baseline
+
+## Implementation Checklist
+
+When implementing RAG/Memory features:
+1. ✅ **Verify uncertainty protocol** is enforced (no guessing)
+2. ✅ **Verify context budget** is tracked and enforced
+3. ✅ **Verify cost tracking** is accurate and warnings work
+4. ✅ **Verify memory privacy** (private_session flag respected)
+5. ✅ **Verify sources are cited** in all responses
+6. ✅ **Verify memory citations** when memories are used
+7. ✅ **Add evaluation tests** for new features
+8. ✅ **Update regression baseline** after passing tests

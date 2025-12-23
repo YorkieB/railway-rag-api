@@ -1,0 +1,112 @@
+---
+description: Governance principles including Zero Vendor Lock-in, Global Uncertainty Protocol, Privacy & Retention, and Safety principles
+alwaysApply: true
+---
+
+# Governance Principles
+
+## Mission Statement
+
+Jarvis is a sovereign, multi-modal, agentic assistant that operates within your personal and work domains, grounded in your documents and tools, with zero vendor lock-in.
+
+**Jarvis IS**:
+- A reasoning engine (LLM-driven chat, code, analysis)
+- A perception system (voice, screen share, video, camera)
+- A task automation platform (browser control, OS control, API orchestration)
+- A knowledge system (RAG over personal documents with uncertainty guardrails)
+- Your computational extension, not a surveillance tool
+
+**Jarvis is NOT**:
+- A consumer app or SaaS product (single-tenant, self-hosted or enterprise)
+- A real-time collaboration platform (e.g., Slack alternative)
+- A replacement for specialized tools (e.g., Photoshop, CAD software)
+- A guarantor of safety without human oversight on destructive actions
+- A public chatbot; it is restricted to authenticated, authorized users
+- Capable of acting without explicit user approval or triggering guardrails
+
+## MVP vs V1 vs V2 Scope
+
+### MVP (Weeks 1-8)
+**Core Scope:**
+- Chat (text input/output)
+- RAG (PDF/DOCX upload)
+- Basic conversation history
+- Project separation
+- Uncertainty protocol
+
+**Out of MVP:**
+- Live sessions
+- Browser control
+- OS control
+- Export
+- Memory
+- Eval suite
+
+**Success Criterion:** User can chat with Jarvis about their documents and get grounded answers without hallucinations.
+
+### V1 (Weeks 9-20)
+**Add:**
+- Streaming voice (STT/TTS)
+- Screen share assist
+- Basic Playwright browser control
+- Uncertainty + safety guardrails
+- PDF export
+
+**Out of V1:**
+- Multi-agent orchestration
+- Windows companion
+- Advanced memory
+- Eval suite
+
+### V2 (Weeks 21+)
+**Add:**
+- Full Windows automation
+- Multi-agent CrewAI pipelines
+- Advanced memory (project + global)
+- Complete eval pack (50-100 tests)
+- Avatar presence
+
+**Out of V2:**
+- Real-time multimodal live sessions
+- Complex agentic autonomy
+- Advanced vision reasoning
+
+## Zero Vendor Lock-in
+- Use platform-agnostic solutions (ChromaDB, standard APIs)
+- Avoid proprietary cloud services that create lock-in
+- Prefer self-hosted or open-source alternatives
+
+## Global Uncertainty Protocol
+When Jarvis must say "Uncertain":
+- **RAG retrieval fails**: No relevant chunks found, or score below threshold
+- **Browser element not found**: Element not in AX Tree after Accessibility Tree check
+- **Live session errors**: Audio/video transcription fails, network drops
+- **OS action blocked**: Permission denied, app not found
+- **Ambiguous user intent**: Multiple interpretations; ask for clarification instead of guessing
+
+**Implementation**:
+- Chat: "I'm not confident about [fact]. I'd need to [action] to verify."
+- Browser: If element not in AX Tree → Uncertainty protocol instead of hallucinating selector
+- RAG: If retrieval returns no chunks → Say so explicitly; don't fabricate
+- Live: If audio glitches or video drops → Report failure, don't proceed
+
+## Privacy & Retention Principles
+- **Data Residency**: Text data (chat, RAG) stays on backend
+- **Secrets**: API keys, passwords never leave local device
+- **Live Sessions**: NOT stored by default; transcripts only (unless explicitly enabled)
+- **Retention**: Chat messages 90 days (default), RAG documents indefinite (user controls), Live transcripts 30 days
+- **Redaction**: Credit cards, SSNs, API keys, passwords redacted before logging
+
+## Code Standards for Uncertainty
+
+### RAG Responses
+- **Implement uncertainty protocol** in RAG responses
+- **Never guess** when retrieval is empty
+- **Always cite sources** when available
+- **Explicitly state** when information is not available
+- Return structured uncertainty response: `{"uncertain": true, "message": "I don't have information about X. Would you like me to [search the web / ask you / check your documents again]?"}`
+
+### Error Handling
+- Always handle errors gracefully with user-friendly messages
+- Surface uncertainty explicitly, don't hide failures
+- Provide actionable alternatives when information is unavailable

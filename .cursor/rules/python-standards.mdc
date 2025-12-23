@@ -1,0 +1,69 @@
+---
+description: Python coding standards for FastAPI backend (rag-api)
+globs: ["rag-api/**/*.py", "companion-api/**/*.py"]
+alwaysApply: false
+---
+
+# Python Code Standards
+
+## Type Hints
+- Use type hints: `from typing import List, Optional`
+- Always specify return types for functions
+
+## Pydantic Models
+- Use Pydantic models for request/response validation
+- Define models in the same file or a separate `models.py` file
+
+## Lazy Initialization
+- Use lazy initialization pattern for API clients: `get_openai_client()` function pattern
+- Initialize clients only when first needed
+
+## Error Handling
+- Use `HTTPException` with descriptive messages
+- Always handle errors gracefully with user-friendly messages
+- Surface uncertainty explicitly, don't hide failures
+
+## Environment Variables
+- Access via `os.getenv()`, never hardcode
+- Never commit API keys in code
+
+## WebSocket
+- Handle `WebSocketDisconnect` exceptions properly
+- Validate session_id before processing
+
+## CORS
+- Configured for WebRTC/WebSocket support
+- Currently allows all origins (`*`) - should be restricted in production
+
+## Uncertainty Protocol
+- When RAG retrieval is empty or low-confidence, return explicit uncertainty response instead of guessing
+- Return structured uncertainty response: `{"uncertain": true, "message": "I don't have information about X..."}`
+
+## Common Patterns
+
+### Creating a New API Endpoint
+```python
+@app.post("/endpoint")
+async def my_endpoint(request: MyRequestModel):
+    try:
+        # Implementation
+        return {"status": "success", "data": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+```
+
+### WebSocket Message Handling
+```python
+data = await websocket.receive_json()
+if data.get("type") == "message_type":
+    # Process message
+    await websocket.send_json({"type": "response", "data": result})
+```
+
+## File Naming
+- **Python**: snake_case (`app.py`, `rag_system.py`)
+
+## Dependencies
+- **Pin versions** in requirements.txt
+- **Update carefully** - test after dependency updates
+- **Document breaking changes** if updating major versions

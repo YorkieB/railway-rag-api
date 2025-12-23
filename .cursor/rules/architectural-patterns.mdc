@@ -1,0 +1,112 @@
+---
+description: Architectural patterns to follow when working on this codebase - lazy initialization, hybrid search, WebSocket patterns, streaming, etc.
+alwaysApply: false
+---
+
+# Architectural Patterns
+
+When working on this codebase, follow these established patterns:
+
+## 1. Lazy Initialization Pattern
+**Location**: `rag-api/app.py`
+- OpenAI API: `get_openai_client()` - Only initializes when first used
+- ChromaDB Client: `get_chromadb_collection()` - Singleton pattern with lazy creation
+- **Rationale**: Avoids initialization errors if environment variables are missing
+- **Pattern**: Use singleton pattern with global variable and getter function
+
+## 2. Hybrid Search Pattern
+**Location**: `rag-api/app.py::search_chromadb()`
+- Combines vector similarity + keyword matching
+- ChromaDB handles hybrid search automatically
+- **Rationale**: Improves retrieval accuracy for both semantic and exact matches
+
+## 3. WebSocket Message Type Pattern
+**Location**: `rag-api/app.py::multimodal_live_websocket()`
+- Type-based message routing: `data.get("type")`
+- Supported types: `text_input`, `video_frame`, `audio_chunk`, `multimodal_query`, `close`
+- **Rationale**: Extensible message protocol for multimodal communication
+- **Note**: Should add Pydantic validation for message types
+
+## 4. Async Queue Pattern
+**Location**: `companion-api/companion_web.py`
+- `transcript_queue`: AsyncQueue for inter-task communication
+- `audio_chunk_queue`: Browser audio chunks
+- **Rationale**: Decouples audio processing from LLM generation
+
+## 4.1. Companion Persona & Tone Pattern
+**Location**: `companion-api/companion_web.py::task_brain()`
+- **System Prompt**: "You are a warm, loyal, and empathetic AI companion."
+- **Response Style**:
+  - Concise: 1-3 sentences maximum to maintain conversational flow
+  - Natural: Speak in natural, flowing paragraphs
+  - **Never use**: Bullet points or markdown formatting
+- **Rationale**: Maintains conversational feel, reduces latency, avoids structured text in voice
+
+## 5. Streaming Pattern (REQUIRED)
+**Location**: `companion-api/companion_web.py::generate_and_speak()`
+- **LLM streaming**: `response_stream` → async generator
+- **TTS streaming**: `text_iterator()` → ElevenLabs stream
+- **STT streaming**: Deepgram real-time streaming (not batch)
+- **Rationale**: Minimizes latency (sub-800ms target), real-time feel
+- **Rule**: Streaming by default - avoid batch processing latency
+- **Violation**: Using batch processing for STT/TTS/LLM when streaming is available
+
+## 6. Memory Injection Pattern
+**Location**: `companion-api/companion_web.py::generate_and_speak()`
+- Memory context inserted at position 1 (after system prompt)
+- Format: `"Relevant Memories: {context_memory}"`
+- **Rationale**: Follows guidance document pattern for memory retrieval
+
+## 7. Sliding Window Pattern
+**Location**: `companion-api/companion_web.py`
+- Conversation history: Last N turns (configurable limit)
+- Automatic trimming when exceeding limit
+- **Rationale**: Manages context window size for LLM efficiency
+
+## 8. Component Composition Pattern
+**Location**: `next-holo-ui/pages/index.tsx`
+- Page-level state management
+- Props drilling to child components
+- Custom hooks: `useLocalStorage`, `useMultimodalLive`
+- **Rationale**: React best practices for Next.js Pages Router
+
+## 9. Path Alias Pattern
+**Location**: `next-holo-ui/tsconfig.json`
+- `@/*` maps to project root
+- **Rationale**: Clean imports without relative path hell
+
+## 10. Type Safety Pattern
+**Location**: `next-holo-ui/types.ts`
+- Centralized type definitions
+- Strict TypeScript mode enabled
+- **Rationale**: Prevents runtime errors, improves IDE support
+
+## Architectural Constraints (From Master Specs)
+
+### Browser Automation
+- **AX Tree First**: Browser interaction targets elements by role/accessible name, not probabilistic guessing
+- **Visual Verification**: After action, screenshot to confirm state change (don't assume)
+- **Uncertainty Protocol**: If element not found, admit it; don't invent selectors
+
+### Platform Constraints
+- **Cloud-friendly backend**: Railway (recommended) or any container host
+- **Playwright ONLY**: Browser automation via Playwright (not Selenium); context orchestration, WebSocket, determinism
+- **Local secrets**: Windows companion never sends credentials upstream; pairing model with device keys
+- **Streaming by default**: STT/TTS/LLM streaming for real-time feel; avoid batch processing latency
+
+### Data Flow Guardrails
+- **Secrets in Secret Manager**: No plaintext API keys in code, env, or logs
+- **Log redaction**: All sensitive patterns masked before storage
+- **Audit trail**: Immutable, timestamped logs of every agent action
+- **Private sessions**: Optional mode: no memory saved, transcripts auto-deleted
+
+## When Adding New Features
+1. **Verify Library Versions**: Check `requirements.txt` and `package.json` before adding dependencies
+2. **Follow Lazy Initialization**: Use `get_openai_client()` and `get_chromadb_collection()` patterns (NOT `configure_gemini()` or `get_bq_client()`)
+3. **Maintain Type Safety**: Use TypeScript strict mode, no `any` types
+4. **Test WebSocket Messages**: Validate message types and payloads
+5. **Use Environment Variables**: Never hardcode API keys or URLs
+6. **Respect Architecture Patterns**: Follow existing patterns (hybrid search, streaming, etc.)
+7. **Zero Vendor Lock-in**: Use platform-agnostic solutions (ChromaDB, standard APIs)
+8. **Respect Architectural Constraints**: Follow AX Tree first, visual verification, streaming by default
+9. **Update AGENTS.MD**: Keep architectural patterns documented when adding new patterns

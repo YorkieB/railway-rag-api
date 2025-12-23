@@ -1,0 +1,375 @@
+---
+description: Safety, security, and permissions rules for browser automation, OS automation, live sessions, and data handling
+alwaysApply: true
+---
+
+# Safety & Security Rules
+
+## Three Permission Tiers
+
+### SUGGEST Tier
+- **Capabilities**: Read-only chat, RAG search, analysis
+- **Approval Gate**: None
+- **Use Cases**: Research, analysis, writing feedback
+- **Actions**: No automation, no writes, no payments
+
+### ASSIST Tier
+- **Capabilities**: Browser navigation (no payments), email drafts (no send), file read
+- **Approval Gate**: Per-action approval required
+- **Use Cases**: Web research, email composition, document viewing
+- **Actions**: Navigation, reading, form filling (non-sensitive), but requires user confirmation
+
+### AGENT Tier
+- **Capabilities**: Payment approval, post/delete, OS access, full automation
+- **Approval Gate**: Confirmation gate + spend limit
+- **Use Cases**: Complex multi-step automation, scheduled tasks
+- **Actions**: Full automation with explicit user approval and budget limits
+
+## Web Browser Safety Rules (BC1-BC4)
+
+### BC1: Navigation & Reading
+- **Action Type**: Navigate/Read (URL, text, links)
+- **Default Gate**: ✅ Allowed
+- **Recovery**: Page timeout → Retry or pause
+- **Rules**: 
+  - No approval needed for navigation
+  - Must verify page loaded before proceeding
+  - Timeout handling required
+
+### BC2: Click/Type (Non-Sensitive)
+- **Action Type**: Click/Type (non-sensitive)
+- **Default Gate**: ✅ Allowed
+- **Recovery**: Element not found → Verify or ask
+- **Rules**:
+  - Must use AX Tree first (Accessibility Tree)
+  - Visual verification after action (screenshot to confirm state change)
+  - If element not found, admit uncertainty; don't invent selectors
+
+### BC3: Form Submission
+- **Action Type**: Form submission (search, etc.)
+- **Default Gate**: ✅ Allowed
+- **Recovery**: Verify result matches intent
+- **Rules**:
+  - Must verify form submission succeeded
+  - Check result matches user intent
+  - Handle errors gracefully
+
+### BC4: Sensitive Actions (BLOCKED)
+- **Login/2FA**: ❌ Blocked - Manual takeover required
+  - User enters credentials; Jarvis resumes after
+- **Payment/Checkout**: ❌ Blocked - Explicit approval + confirm amount
+  - User reviews and clicks "Confirm Pay"
+- **Delete/Modify records**: ❌ Blocked - Explicit approval + show what will change
+  - User reviews before execution
+- **Download/Install**: ❌ Blocked - Approval + scan destination
+  - User confirms file type + location
+
+### Domain Allow/Deny Lists
+- **Default**: Domain allow-list + deny-list (configurable)
+- **Admin Control**: Blocked domains configurable
+- **Default Blocked**: Banking, health, password managers
+- **Rule**: Must check domain against allow/deny list before navigation
+
+## OS/Windows Companion Safety Rules (CC0-CC3)
+
+### CC0: Local Companion Foundation
+- **Purpose**: Secure pairing with cloud Jarvis, device key management, trust boundaries
+- **Device Pairing**: Ed25519 key exchange + revocation model
+  - Windows app generates local Ed25519 keypair
+  - Cloud signs device certificate
+  - Device certificate stored in Windows DPAPI (hardware-backed if TPM)
+  - Revocation check on app startup: `GET /api/devices/{device_id}/status`
+  - If revoked: Clear all local credentials and exit immediately (< 2 seconds)
+- **Trust Boundaries**:
+  - Credentials (passwords, API keys, tokens): Windows Credential Manager + DPAPI, never leave device
+  - Session keys: In-memory only, cleared on logout, never persisted to cloud
+  - Automation logs: Local SQLite (encrypted), sent to cloud only on explicit user export (redacted for PII)
+  - Screenshots/recordings: Temp folder (auto-delete after 24h), never sent upstream unless user explicitly enables recording
+  - Device certificate: Registry `HKLM\Software\Jarvis`, DPAPI-encrypted, revocation checked via cloud on each session
+- **Storage Locations**: All secrets stay local; paired device key keeps data off cloud
+
+### CC1: App Launch/Switch
+- **Action Type**: App launch/switch
+- **Default Gate**: ✅ Allowed (except blocklist)
+- **Blocklist**: Password managers, system tools
+- **Rules**: 
+  - Check blocklist before launch
+  - System tools require explicit approval
+
+### CC2: File Operations & Screen-Based Fallback
+- **File Read**: ✅ Allowed (except system dirs)
+  - Folder allow-list required
+  - System: `C:\Windows`, etc. → read-only
+- **File Write/Delete**: ❌ Blocked
+  - Approval + show path required
+  - Confirmation required; can't auto-delete
+  - System directories always blocked
+- **Screen-Based Fallback**: If AX Tree insufficient (canvas, remote desktop, custom UI frameworks)
+  - Fallback to vision + coordinate-based clicking
+  - Capture screenshot of target window
+  - Send to vision model: "Find the [element] in this screenshot"
+  - Model returns bounding box + confidence
+  - Show overlay: green rectangle around detected element
+  - User can drag to adjust bounding box if needed
+  - On approval, click center of bounding box using Windows SetCursorPos() + mouse_event()
+- **Region-of-Control (ROC)**: User selects specific window before automation
+  - Automation canvas limited to that window's bounds
+  - Any detected UI element outside ROC is ignored
+  - Example: If ROC = "Chrome.exe → Zoom Meeting Tab", automation will NOT click elements from taskbar or other apps
+  - Rule: Never click outside Region-of-Control; ask user to clarify if element is outside ROC
+
+### CC3: System Operations & Guardrails
+- **Keyboard/Clipboard**: ✅ Allowed (with redaction)
+  - Passwords redacted; clipboard monitored
+- **Screenshot**: ✅ Allowed
+  - Auto-blur sensitive UI (banking, passwords)
+  - Secret detection: Scan for regex patterns before vision analysis
+  - Blur matching regions with 10px Gaussian blur before sending to vision model
+  - Log: "[timestamp] Secrets blurred: N regions (API key, password field)"
+- **System Operations** (restart, sleep): ❌ Blocked
+  - Approval + countdown timer required
+  - User can cancel within 10 seconds
+- **Confirmation Flows for Destructive Actions**:
+  - **Delete file**: Show "Delete: [filename] [size]"? [Confirm] [Cancel]
+  - **Move folder**: Show "Move [count] files from [from] to [to]"? [Confirm] [Cancel]
+  - **Rename**: Show old name → new name side-by-side
+  - **Uninstall app**: Show "Uninstall [app name] [size]"? [Confirm] [Cancel] + 5-second timeout
+  - **System restart**: "Restarting in 10 seconds. Click Cancel to abort." (Hard countdown, no silent execution)
+  - **Large batch delete** (100+ files): "About to delete [count] files permanently. Confirm to proceed." [Confirm] [Cancel]
+  - **Execution pauses** until user clicks or 30-second timeout (defaults to Cancel)
+- **Always-Visible "Automation Active" Indicator**:
+  - **Taskbar Badge**: Jarvis icon in system tray shows animated blue pulse when automation running
+  - **Hover tooltip**: "Automation Active: [action description] ([step]/[total] steps)"
+  - **Click**: Opens Automation Console (live feed of actions)
+  - **On-Screen Banner** (for AGENT-tier automations > 10 seconds):
+    - Semi-transparent banner at top of screen
+    - Format: "AUTOMATION [action]... [elapsed time] PAUSE STOP"
+    - Non-intrusive: 20px height, 5% opacity, auto-hide on focus loss
+  - **Locations**: System tray (right-click → "STOP Automation"), on-screen banner (if visible), keyboard shortcut: Ctrl+Alt+J (configurable)
+- **Panic Stop**:
+  - **Trigger**: User presses Ctrl+Alt+J or clicks "STOP Automation"
+  - **Effect**: Immediately cancels current action, rolls back partial file operations, closes spawned windows, logs incident, returns UI focus to user
+  - **Latency**: < 500ms from trigger to stop (target: < 100ms)
+  - **Rule**: Panic stop must be immediate and reliable
+
+## Live Session Safety Rules (LS0-LS3)
+
+### LS0: Live Session Foundation & Indicator
+- **Purpose**: Always-visible LIVE indicator showing what's active, one-click Panic Stop
+- **Indicator Design**:
+  - **Windows Taskbar Badge**: Jarvis icon shows animated pulse when live session active
+  - **Fullscreen Overlay** (optional, configurable): Shows current mode (LS1A/LS1B/LS1C/LS2/LS3)
+  - **Panic Stop Button**: One-click kills mic/camera/screen instantly
+- **State Machine**: IDLE → CONNECTING → LIVE → PAUSED → ENDED
+  - **IDLE**: No session
+  - **CONNECTING**: Acquiring devices, establishing WebRTC/WSS, authenticating with device key
+  - **LIVE**: Streaming I/O active (audio flowing: Deepgram STT, LLM, ElevenLabs TTS; video/screen share if enabled; budget tracking active)
+  - **PAUSED**: Streams suspended, state preserved (audio/video paused; transcript accumulated so far; user can resume or end)
+  - **ENDED**: Cleanup & archival (finalize transcript + metadata; redact secrets; store to Firestore with retention policy; release device resources; return to IDLE)
+- **Safety Measures**:
+  - Mute button always visible
+  - Transcript only (no raw audio stored by default)
+  - User initiates all sessions
+
+### LS1A: Audio-Only Call (WebRTC Audio)
+- **Feature**: Audio-only call with streaming STT/TTS
+- **Permission Gate**: ✅ Allowed (SUGGEST tier)
+- **User Initiates**: Required
+- **Specification**:
+  - **Transport**: WebRTC datachannel + audio track (Opus codec, 48kHz)
+  - **STT Provider**: Deepgram Nova-2/Nova-3 WebSocket streaming (partial + final transcripts)
+  - **STT Latency Target**: 300-600ms (partial text as user speaks)
+  - **LLM**: GPT-4o or Claude 3.5 Sonnet (streaming tokens, TTFT < 500ms)
+  - **TTS Provider**: ElevenLabs Flash v2.5 (streaming, 75-100ms latency)
+  - **Total TTFT**: Sub-1000ms (user finishes sentence → text appears → audio starts streaming)
+  - **Barge-In**: User can interrupt Jarvis mid-sentence (Deepgram detects speechstarted event → cancel audio playback + clear TTS queue, < 50ms)
+  - **Turn Detection**: Deepgram's utteranceendms (configurable 500-1500ms) determines when user finishes speaking
+- **Safety Measures**: 
+  - Mute button always visible
+  - Transcript only (no raw audio stored by default)
+
+### LS1B: Video Call (Local Camera)
+- **Feature**: Audio + optional camera frames
+- **Permission Gate**: ✅ Allowed (SUGGEST tier)
+- **User Initiates**: Required
+- **Specification**:
+  - **Camera Input**: Browser `navigator.mediaDevices.getUserMedia()` → camera stream
+  - **Frame Sampling**: Optional; default off. If enabled, 0.5 fps (1 frame every 2s) for cost control
+  - **Resolution**: 640x480 (VGA) default; user can select device
+  - **Codec**: H.264 (VP8 fallback); stream within WebRTC datachannel
+  - **Network Adaptation**: WebRTC's built-in bandwidth estimation. If network poor, reduce resolution to 320x240
+  - **User Experience**: Camera preview tile (10-15% of screen). Off-button visible always
+  - **Audio**: Same as LS1A (WebRTC + Deepgram streaming STT + ElevenLabs TTS)
+- **Use Cases**: Gesture recognition (user's hand pointing at screen), emotion detection (future), presence detection (user still there)
+- **Safety Measures**: 
+  - Camera off by default
+  - User controls stream
+  - Frame sampling rate capped (0.5 fps max)
+
+### LS1C: Jarvis Presence/Avatar (Waveform Sync)
+- **Feature**: Audio + avatar/presence (waveform visualization)
+- **Permission Gate**: ✅ Allowed (SUGGEST tier)
+- **User Initiates**: Required
+- **Specification**:
+  - **Waveform Visualization**: Animated circular orbit or audio waveform that expands/contracts with Deepgram confidence + ElevenLabs output amplitude
+  - **States**: 1. Listening (waveform pulses with incoming audio), 2. Thinking (waveform dims, circular spinner), 3. Speaking (waveform expands in sync with TTS playback)
+  - **Optional Avatar**: 2D sprite or 3D talking head (defer to V2). Mouth animates to phoneme-level TTS output
+  - **Lip Sync**: If avatar enabled, use ElevenLabs timing_info to sync mouth movements
+  - **GPU Cost**: Avatar rendering on client (browser). Zero server cost
+- **Safety Measures**: 
+  - Waveform synced to audio; no deepfake
+  - Avatar optional (deferred to V2)
+
+### LS2: Video Call (Full)
+- **Feature**: Audio + video call
+- **Permission Gate**: ✅ Allowed (SUGGEST tier)
+- **User Initiates**: Required
+- **Safety Measures**: 
+  - Camera off by default
+  - User controls stream
+
+### LS3: Screen Share Assist
+- **Feature**: Audio + screen share (highest ROI)
+- **Permission Gate**: ✅ Allowed (ASSIST tier)
+- **User Initiates**: Required
+- **Specification**:
+  - **Screen Capture**: User selects window or display area. Browser captures via `getDisplayMedia()`
+  - **Frame Sampling**: Default 1 fps (1 frame per second). Adjustable per budget: 0.5 fps (cost-control), 2 fps (higher detail)
+  - **Vision Model**: GPT-4o or Claude 3.7 Vision (multimodal LLM capable of analyzing UI)
+  - **Vision Latency**: 3-5 seconds per frame (slower than audio, but asynchronous so doesn't block conversation)
+  - **Secret Handling**: Local blur (Gaussian, 10px) of regex-detected secrets before sending to vision. Log blurred regions
+  - **Region-of-Interest (ROI)**: User can draw a box around specific window/area. Only that ROI is analyzed. Prevents context overload
+  - **Use Cases**: "Describe What You See" (vision model describes UI), "Guide Me Step-by-Step" (vision model returns structured plan with copy buttons), "Pin/Snapshot" (user can pin a frame to keep it in context during multi-step guidance)
+  - **Fallback**: Screenshot Upload (if video stream unstable, offer manual screenshot upload)
+- **Cost Control**:
+  - Frame Sampling Rate | Vision Tokens per Frame | Daily Frames Limit
+  - 0.5 fps | 2000-3000 | 50 (30 min session)
+  - 1 fps (DEFAULT) | 2000-3000 | 100 (30 min session)
+  - 2 fps | 2000-3000 | 200 (30 min session)
+  - When daily token budget (50K vision tokens default) at 80%, auto-downgrade to 0.5 fps. At 100%, pause LS3
+- **Safety Measures**: 
+  - Frame sampling rate capped
+  - Auto-blur secrets (10px Gaussian blur before vision analysis)
+  - Stop at budget limit
+  - Region-of-Interest selection to prevent context overload
+
+## Cost & Budget Controls
+
+### Daily Budget Limits (MVP)
+- **Text tokens**: 500K/day
+- **Vision tokens**: 50K/day
+- **Audio minutes**: 60/day
+- **Screenshots**: 100/day
+
+### Per-Session Limits
+- **Text tokens**: 100K per session
+- **Vision tokens**: 10K per session
+- **Audio minutes**: 30 min per call
+- **Screenshots**: 20 per session
+
+### Enforcement Rules
+- **Warning at 80%**: Return warning in response
+- **Hard halt at 100%**: Stop session/feature, reject request
+- **Text tokens**: Stop session; warn at 80%
+- **Vision tokens**: Stop vision features; use text fallback
+- **Audio minutes**: Hang up at limit; warn at 80%
+- **Screenshots**: Stop screen share; log cost
+
+## Logging & Redaction Requirements
+
+### Mandatory Redaction
+- **Before Logging**: Redact sensitive patterns using regex
+- **Patterns to Redact**:
+  - Credit cards: `[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{4}`
+  - SSNs: `[0-9]{3}-[0-9]{2}-[0-9]{4}`
+  - API keys: `sk-.*`, `[A-Za-z0-9_-]{40,}`
+  - Passwords: Pattern matching (configurable)
+- **Fallback**: If redaction fails, don't log sensitive data at all
+
+### Audit Trail Requirements
+- **Log Every Action**: Browser action, OS action, tool call
+- **Required Fields**: Timestamp + user + action + result
+- **Immutable Logs**: Cannot be modified after creation
+- **Retention**: 30 days (compliance: 90 days in prod)
+- **Redaction**: All sensitive patterns masked before storage
+
+## Privacy Rules (Special Cases)
+
+### Healthcare Data
+- **Rule**: If user indicates health data, disable cloud APIs
+- **Action**: Use local models only
+- **Storage**: Never store health data in cloud
+
+### Financial Data
+- **Rule**: Transactions logged only for audit
+- **Action**: Never used for model training
+- **Storage**: Audit logs only, auto-deleted after retention period
+
+### Live Sessions
+- **Rule**: Warn user before recording
+- **Default**: Transcripts only (no raw AV)
+- **Storage**: NOT stored by default; transcripts only (unless explicitly enabled)
+
+## Browser Automation Safety Patterns
+
+### AX Tree First
+- **Rule**: Browser interaction targets elements by role/accessible name
+- **Implementation**: Use Accessibility Tree, not probabilistic guessing
+- **Violation**: Never guess selectors; use AX Tree or admit uncertainty
+
+### Visual Verification
+- **Rule**: After action, screenshot to confirm state change
+- **Implementation**: Don't assume action succeeded; verify visually
+- **Pattern**: Action → Screenshot → Verify → Proceed or Retry
+
+### Uncertainty Protocol for Browser
+- **Rule**: If element not found, admit it; don't invent selectors
+- **Implementation**: Return uncertainty response instead of guessing
+- **Pattern**: Element not in AX Tree → Uncertainty protocol
+
+## Data Residency Rules
+
+### Text Data (Chat, RAG)
+- **Location**: Stays on backend
+- **Storage**: Backend database (ChromaDB, etc.)
+- **Never**: Sent to external services for training
+
+### Secrets (API Keys, Passwords)
+- **Location**: Never leave local device
+- **Storage**: Secret Manager with strict access
+- **Never**: Stored in code, env files, or logs
+
+### Live Session Audio/Video
+- **Default**: NOT stored
+- **Storage**: Transcripts only (unless explicitly enabled)
+- **Retention**: 30 days (auto-delete unless pinned)
+
+### Windows Companion
+- **Secrets**: Stay local
+- **Storage**: Paired device key keeps data off cloud
+- **Never**: Credentials sent upstream
+
+## Retention Schedule
+
+| Data Type | Retention | Exception | Purge Method |
+|-----------|-----------|-----------|--------------|
+| Chat messages | 90 days (default) | User can pin/export | Auto-delete or manual export |
+| RAG documents | Indefinite | User controls | Manual re-index or delete |
+| Live session transcripts | 30 days | User can export | Auto-delete after 30 days |
+| Logs (audit trail) | 30 days | Compliance: 90 days in prod | Redacted before archive |
+| Temporary files (screenshots, API responses) | 24 hours | Browser sessions shorter | Auto-cleanup on session end |
+| Memory (personalization) | User-controlled | Private sessions = no save | Manual delete in UI |
+
+## Implementation Checklist
+
+When implementing safety/security features:
+1. ✅ **Verify permission tier** is appropriate for action
+2. ✅ **Check domain allow/deny list** before browser navigation
+3. ✅ **Use AX Tree first** for browser element selection
+4. ✅ **Visual verification** after browser actions
+5. ✅ **Redact sensitive data** before logging
+6. ✅ **Enforce budget limits** with warnings and halts
+7. ✅ **Require approval** for sensitive actions (payments, deletes, etc.)
+8. ✅ **Respect privacy rules** for healthcare/financial data
+9. ✅ **Log all actions** with audit trail
+10. ✅ **Handle failures gracefully** with uncertainty protocol

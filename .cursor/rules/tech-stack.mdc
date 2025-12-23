@@ -1,0 +1,71 @@
+---
+description: Technology stack constraints and version locking for the RAG Knowledge Base project
+alwaysApply: true
+---
+
+# Technology Stack
+
+## Project Overview
+This is a multi-service RAG (Retrieval-Augmented Generation) system with zero vendor lock-in:
+- **rag-api**: FastAPI backend with ChromaDB Vector Search, OpenAI embeddings, and multimodal WebSocket support
+- **next-holo-ui**: Next.js 14 + TypeScript frontend with holographic UI for multimodal voice/video
+- **companion-api**: Real-time AI companion service with Deepgram STT, OpenAI GPT-4o, and ElevenLabs TTS
+
+## Backend (rag-api)
+- **Framework**: FastAPI 0.115.6
+- **Python**: 3.8+
+- **AI/ML**: 
+  - `openai>=1.0.0` for LLM answer generation (GPT-4o), embeddings (`text-embedding-3-small`), and vision analysis
+  - `chromadb>=0.4.0` for vector search
+- **Database**: ChromaDB (local/self-hosted, persistent storage)
+- **Deployment**: Railway (recommended) or any container host
+
+## Frontend (next-holo-ui)
+- **Framework**: Next.js 14.2.5 (Pages Router)
+- **Language**: TypeScript (strict mode)
+- **Styling**: Tailwind CSS 3.4.11
+- **UI**: Framer Motion for animations
+- **Deployment**: Vercel (recommended) or any Next.js host
+
+## FORBIDDEN Technologies
+- ❌ **Gemini API** - Replaced with OpenAI
+- ❌ **BigQuery** - Replaced with ChromaDB
+- ❌ **Google Cloud Run** - Use Railway instead
+- ❌ **Selenium** - Use Playwright only for browser automation
+- ❌ Any proprietary cloud services that create vendor lock-in
+
+## Browser Automation Constraint
+- **Playwright ONLY** - Browser automation must use Playwright (not Selenium)
+- **Rationale**: Better context orchestration, WebSocket support, determinism
+- **Location**: Future browser automation features
+- **Rule**: Never use Selenium for browser automation
+
+## Environment Variables
+
+**Backend (rag-api):**
+- `OPENAI_API_KEY` - Required: OpenAI API key for LLM answer generation, embeddings, and vision analysis
+- `CHROMADB_PATH` - Optional: ChromaDB storage path (default: `./rag_knowledge_base`)
+
+**Frontend (next-holo-ui):**
+- `NEXT_PUBLIC_API_BASE` - Required: Backend API URL (HTTPS for production)
+
+## API Endpoints
+- **RAG Query**: `POST /query` - Hybrid search with ChromaDB
+- **Document Upload**: `POST /upload` - PDF/DOCX/TXT/MD support
+- **Multimodal Live**: 
+  - `POST /multimodal-live/create-session` - Create session
+  - `WS /multimodal-live/ws/{session_id}` - WebSocket connection
+  - `GET/DELETE /multimodal-live/sessions/{session_id}` - Session management
+
+## ChromaDB Configuration
+- **Storage**: Local persistent storage (default: `./rag_knowledge_base`)
+- **Collection**: `documents` (auto-created)
+- **Vector Search**: Uses hybrid search (vector similarity + text search)
+- **Embeddings**: Generated using OpenAI `text-embedding-3-small` model
+
+## Multimodal Live Implementation
+- Current implementation uses OpenAI GPT-4o for multimodal processing
+- WebSocket handles: text_input, audio_chunk, video_frame, multimodal_query
+- Vision uses GPT-4o model with vision capabilities
+- Audio processing sends acknowledgments (full streaming requires SDK integration)
+- Session management: Store in `active_sessions` dict with config and timestamp

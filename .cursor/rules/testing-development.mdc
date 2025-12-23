@@ -1,0 +1,168 @@
+---
+description: Testing and development guidelines, local development commands, and health check endpoints
+alwaysApply: false
+---
+
+# Testing & Development
+
+## Local Development
+
+### Backend Services
+
+#### rag-api
+- **Command**: `uvicorn app:app --reload --port 8080`
+- **Location**: `rag-api/` directory
+- **Health Check**: `GET /health` - Tests ChromaDB connection
+- **Environment Variables**:
+  - `OPENAI_API_KEY` - Required
+  - `CHROMADB_PATH` - Optional (default: `./rag_knowledge_base`)
+
+#### companion-api
+- **Command**: `uvicorn main:app --reload --port 8080`
+- **Location**: `companion-api/` directory
+- **Health Check**: `GET /health` - Returns active session count
+- **Environment Variables**:
+  - `DEEPGRAM_API_KEY` - Required
+  - `OPENAI_API_KEY` - Required
+  - `ELEVENLABS_API_KEY` - Required
+  - `CHROMADB_PATH` - Optional (default: `./companion_memory`)
+
+### Frontend
+
+#### next-holo-ui
+- **Command**: `npm run dev` (port 3000)
+- **Location**: `next-holo-ui/` directory
+- **Environment Variables**:
+  - `NEXT_PUBLIC_API_BASE` - Required: Backend API URL
+
+## Testing
+
+### Backend Testing
+- **Test endpoints** with `curl` or `Invoke-WebRequest` (PowerShell)
+- **Test WebSocket** with browser DevTools or WebSocket client
+- **Verify health checks** before deploying
+
+### Frontend Testing
+- **Test in browser** with dev server (`npm run dev`)
+- **Test WebSocket connections** in browser DevTools
+- **Verify API integration** with backend running
+
+## Health Checks
+
+### rag-api
+- **Endpoint**: `GET /health`
+- **Response**: 
+  ```json
+  {
+    "status": "healthy",
+    "chromadb_connection": "ok",
+    "document_count": 0
+  }
+  ```
+
+### companion-api
+- **Endpoint**: `GET /health`
+- **Response**: Active session count
+
+## Evaluation Suite Requirements
+
+### RAG & Memory Evaluation
+- **Location**: `tests/rag_memory_eval/`
+- **Test Structure**: 25 prompts covering:
+  - RAG success (5 prompts)
+  - Empty retrieval (5 prompts) - **Critical**: Must test uncertainty protocol
+  - Memory recall (5 prompts)
+  - Private session (3 prompts) - **Critical**: Must test privacy
+  - Long chat (3 prompts)
+  - Ambiguous queries (4 prompts) - **Critical**: Must test clarification requests
+- **Scoring Rubric**:
+  - 10 points: Exact retrieval with citation, or explicit uncertainty admission
+  - 7 points: Correct but no source cited
+  - 5 points: Admits lack but vague suggestion
+  - 0 points: Hallucinated or wrong answer
+- **Success Metrics**:
+  - Average Score: ≥ 7.0 (PASS)
+  - Hallucination Rate: ≤ 2% (PASS)
+  - Critical Prompts: All must score ≥ 7.0 (PASS)
+  - Regression Tolerance: ±10% (PASS)
+  - Score Drop: Blocks merge if >10% drop from baseline (FAIL)
+
+### Browser Automation Evaluation
+- **Location**: `tests/browser_eval/`
+- **Test Structure**: 15 scenarios covering:
+  - Navigation, forms, CAPTCHA, payment flows
+  - Shadow DOM, element-not-found uncertainty
+- **Success Metrics**:
+  - Average Score: ≥ 8.5 (PASS)
+  - Hallucination Rate: ≤ 5% (PASS)
+  - Regression Tolerance: ±10% (PASS)
+
+### Live Sessions & Windows Companion Evaluation
+- **Location**: `tests/live_sessions_eval/` or `tests/windows_eval/`
+- **Test Structure**: OS automation, audio pipeline, screen-share vision, privacy/retention validation
+- **Success Metrics**:
+  - Average Score: ≥ 8.0 (PASS)
+  - Hallucination Rate: ≤ 3% (PASS)
+  - Critical Prompts: All must score ≥ 8.0 (PASS)
+  - Regression Tolerance: ±5% (PASS)
+
+### Windows Companion Success Metrics & Grading Rubric
+- **Pairing Success Rate**: 99% (count successful device pairings vs. failed attempts over 1 week)
+- **Revocation Latency**: < 2 sec (time from cloud revocation toggle → app shutdown)
+- **Panic Stop Latency**: < 500ms (time from Ctrl+Alt+J press → automation halt, verified via audit log)
+- **Secret Blur Accuracy**: 98% (no false negatives) - manual review of LS3 screenshot blurs; all sensitive regions identified
+- **Blocklist Enforcement**: 100% (zero bypasses) - attempt to launch each blocklist app 10 times; verify 0 launches
+- **Hallucination Count (OS)**: 0 (manual audit: does automation ever click non-existent elements? Should be 0)
+
+### Live Sessions Success Metrics & Grading Rubric
+- **TTFT Audio**: < 1000ms (sub-second) - measure STT final → audio playback start latency over 20 turns
+- **Barge-In Accuracy**: 99% (correct interruption) - user interrupts 50 times; measure % where audio playback actually stops
+- **Budget Enforcement Accuracy**: 100% (no overage) - run multiple sessions, verify audioMinutesUsed never exceeds dailyLimit
+- **Uncertainty Trigger Rate**: ≥ 80% (high recall) - when STT confidence < 0.5, verify 80%+ of cases trigger "Uncertain" response
+- **Secret Redaction**: 100% (no exposed secrets in storage) - audit transcript storage; verify no plaintext API keys, SSN, or CC numbers
+- **Hallucination Count (Live)**: 0 (manual audit: does automation ever invent transcribed text? Should be 0)
+
+### Regression Testing
+- **Baseline Files**: Committed to repo (`baseline.json` in each eval directory)
+- **Regression Gates**:
+  - Compare current scores to baseline
+  - Block merge on score drop >10% (RAG/Memory/Browser) or >5% (Live Sessions)
+  - Block merge on hallucination rate increase >50%
+  - Block merge if critical prompts drop below threshold
+- **Baseline Updates**: Only update baseline after passing all regression gates
+
+### CI/CD Integration
+- **GitHub Actions**: `.github/workflows/eval-suite.yml`
+- **Trigger**: On code changes (push to main, pull requests)
+- **Workflow**:
+  1. Run all evaluation suites
+  2. Compare to baseline
+  3. Generate report
+  4. Block merge on regression failures
+  5. Report to dashboard (if configured)
+- **Blocking Rules**:
+  - Regression failures block merge
+  - Critical prompt failures block merge
+  - Hallucination rate increase blocks merge
+
+## Known Limitations
+
+1. **WebSocket Session Storage**: In-memory dict (`active_sessions`) - not persistent across restarts
+2. **ChromaDB Vector Search**: Uses hybrid search (vector similarity + keyword matching) with in-memory scoring
+3. **CORS**: Currently allows all origins - should be restricted in production
+4. **Multimodal Live**: Current implementation uses simplified approach - full streaming requires SDK integration
+
+## Development Workflow
+
+1. **Start Backend**: Run `uvicorn app:app --reload` in `rag-api/` directory
+2. **Start Frontend**: Run `npm run dev` in `next-holo-ui/` directory
+3. **Test Locally**: Verify endpoints and WebSocket connections
+4. **Check Health**: Verify `/health` endpoints return expected responses
+5. **Test Features**: Test new features before deployment
+
+## Dependencies
+
+- **Pin versions** in requirements.txt and package.json
+- **Update carefully** - test after dependency updates
+- **Document breaking changes** if updating major versions
+- **Verify compatibility** before adding new dependencies

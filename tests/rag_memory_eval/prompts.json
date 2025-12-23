@@ -1,0 +1,583 @@
+{
+  "rag_success": [
+    {
+      "id": "rag_1",
+      "question": "What is the main topic discussed in the uploaded documents?",
+      "expected_behavior": "Should retrieve relevant chunks and provide answer with citations",
+      "category": "rag_success"
+    },
+    {
+      "id": "rag_2",
+      "question": "Summarize the key points from the documents.",
+      "expected_behavior": "Should retrieve multiple chunks and synthesize answer",
+      "category": "rag_success"
+    },
+    {
+      "id": "rag_3",
+      "question": "What are the important dates mentioned?",
+      "expected_behavior": "Should extract specific information with citations",
+      "category": "rag_success"
+    },
+    {
+      "id": "rag_4",
+      "question": "Explain the main concepts in detail.",
+      "expected_behavior": "Should provide detailed explanation with source references",
+      "category": "rag_success"
+    },
+    {
+      "id": "rag_5",
+      "question": "What conclusions can be drawn from the documents?",
+      "expected_behavior": "Should analyze and synthesize with proper citations",
+      "category": "rag_success"
+    },
+    {
+      "id": "rag_6",
+      "question": "What are the key statistics or numbers mentioned?",
+      "expected_behavior": "Should extract numerical data with citations",
+      "category": "rag_success"
+    },
+    {
+      "id": "rag_7",
+      "question": "Who are the main people or entities discussed?",
+      "expected_behavior": "Should identify entities with source references",
+      "category": "rag_success"
+    },
+    {
+      "id": "rag_8",
+      "question": "What are the main arguments or positions presented?",
+      "expected_behavior": "Should extract arguments with proper citations",
+      "category": "rag_success"
+    },
+    {
+      "id": "rag_9",
+      "question": "What methodology or approach is described?",
+      "expected_behavior": "Should explain methodology with source citations",
+      "category": "rag_success"
+    },
+    {
+      "id": "rag_10",
+      "question": "What are the recommendations or next steps?",
+      "expected_behavior": "Should extract recommendations with citations",
+      "category": "rag_success"
+    }
+  ],
+  "empty_retrieval": [
+    {
+      "id": "empty_1",
+      "question": "What is the capital of Mars?",
+      "expected_behavior": "Should return uncertain response with empty_retrieval reason",
+      "category": "empty_retrieval"
+    },
+    {
+      "id": "empty_2",
+      "question": "Tell me about quantum computing in ancient Egypt.",
+      "expected_behavior": "Should return uncertain response, not hallucinate",
+      "category": "empty_retrieval"
+    },
+    {
+      "id": "empty_3",
+      "question": "What did the documents say about time travel?",
+      "expected_behavior": "Should explicitly state information not available",
+      "category": "empty_retrieval"
+    },
+    {
+      "id": "empty_4",
+      "question": "Summarize the section on unicorn biology.",
+      "expected_behavior": "Should return uncertain with suggestions",
+      "category": "empty_retrieval"
+    },
+    {
+      "id": "empty_5",
+      "question": "What is the recipe for chocolate cake mentioned in the documents?",
+      "expected_behavior": "Should admit uncertainty, not fabricate recipe",
+      "category": "empty_retrieval"
+    },
+    {
+      "id": "empty_6",
+      "question": "What did the documents say about flying cars?",
+      "expected_behavior": "Should return uncertain, not invent information",
+      "category": "empty_retrieval"
+    },
+    {
+      "id": "empty_7",
+      "question": "Tell me about the section on dragon breeding.",
+      "expected_behavior": "Should explicitly state information not found",
+      "category": "empty_retrieval"
+    },
+    {
+      "id": "empty_8",
+      "question": "What are the details about the secret project?",
+      "expected_behavior": "Should return uncertain response",
+      "category": "empty_retrieval"
+    }
+  ],
+  "memory_recall": [
+    {
+      "id": "mem_1",
+      "question": "What did I tell you about my preferences earlier?",
+      "expected_behavior": "Should retrieve relevant memory and cite it",
+      "category": "memory_recall",
+      "setup": "Create memory: 'User prefers dark mode interface'"
+    },
+    {
+      "id": "mem_2",
+      "question": "Remember when I mentioned my favorite programming language?",
+      "expected_behavior": "Should recall memory with citation",
+      "category": "memory_recall",
+      "setup": "Create memory: 'User's favorite language is Python'"
+    },
+    {
+      "id": "mem_3",
+      "question": "What decision did we make about the project structure?",
+      "expected_behavior": "Should retrieve decision memory",
+      "category": "memory_recall",
+      "setup": "Create memory: 'Decision: Use FastAPI for backend'"
+    },
+    {
+      "id": "mem_4",
+      "question": "Tell me about my previous preferences.",
+      "expected_behavior": "Should retrieve multiple preference memories",
+      "category": "memory_recall",
+      "setup": "Create multiple preference memories"
+    },
+    {
+      "id": "mem_5",
+      "question": "What facts have I shared with you?",
+      "expected_behavior": "Should retrieve fact-type memories",
+      "category": "memory_recall",
+      "setup": "Create fact memories"
+    },
+    {
+      "id": "mem_6",
+      "question": "What did I say about my work schedule?",
+      "expected_behavior": "Should retrieve schedule-related memory",
+      "category": "memory_recall",
+      "setup": "Create memory: 'User works 9-5 EST'"
+    },
+    {
+      "id": "mem_7",
+      "question": "What are my project preferences?",
+      "expected_behavior": "Should retrieve project-related memories",
+      "category": "memory_recall",
+      "setup": "Create project preference memories"
+    }
+  ],
+  "private_session": [
+    {
+      "id": "private_1",
+      "question": "What is the main topic?",
+      "expected_behavior": "Should work normally but not write to memory",
+      "category": "private_session",
+      "private_session": true
+    },
+    {
+      "id": "private_2",
+      "question": "Summarize the documents.",
+      "expected_behavior": "Should not retrieve memories even if they exist",
+      "category": "private_session",
+      "private_session": true
+    },
+    {
+      "id": "private_3",
+      "question": "What are the key points?",
+      "expected_behavior": "Should process query but respect privacy flag",
+      "category": "private_session",
+      "private_session": true
+    }
+  ],
+  "long_chat": [
+    {
+      "id": "long_1",
+      "questions": [
+        "What is the first topic?",
+        "What is the second topic?",
+        "What is the third topic?",
+        "What is the fourth topic?",
+        "What is the fifth topic?"
+      ],
+      "expected_behavior": "Should maintain context across multiple turns",
+      "category": "long_chat"
+    },
+    {
+      "id": "long_2",
+      "questions": [
+        "Tell me about topic A.",
+        "Now tell me about topic B.",
+        "Compare A and B.",
+        "What are the differences?",
+        "Summarize everything."
+      ],
+      "expected_behavior": "Should handle context budget and truncation if needed",
+      "category": "long_chat"
+    },
+    {
+      "id": "long_3",
+      "questions": [
+        "Question 1",
+        "Question 2",
+        "Question 3",
+        "Question 4",
+        "Question 5",
+        "Question 6",
+        "Question 7",
+        "Question 8",
+        "Question 9",
+        "Question 10"
+      ],
+      "expected_behavior": "Should handle extended conversation with budget management",
+      "category": "long_chat"
+    }
+  ],
+  "ambiguous_queries": [
+    {
+      "id": "ambig_1",
+      "question": "What about that thing?",
+      "expected_behavior": "Should ask for clarification or return uncertain",
+      "category": "ambiguous_queries"
+    },
+    {
+      "id": "ambig_2",
+      "question": "Tell me more.",
+      "expected_behavior": "Should request clarification about what to expand on",
+      "category": "ambiguous_queries"
+    },
+    {
+      "id": "ambig_3",
+      "question": "What do you think?",
+      "expected_behavior": "Should ask what specific aspect to discuss",
+      "category": "ambiguous_queries"
+    },
+    {
+      "id": "ambig_4",
+      "question": "Can you help with that?",
+      "expected_behavior": "Should clarify what 'that' refers to",
+      "category": "ambiguous_queries"
+    }
+  ],
+  "v1_browser_automation": [
+    {
+      "id": "browser_1",
+      "question": "Navigate to example.com and tell me what you see.",
+      "expected_behavior": "Should navigate and extract page content",
+      "category": "v1_browser_automation"
+    },
+    {
+      "id": "browser_2",
+      "question": "Search for 'Python programming' on a search engine.",
+      "expected_behavior": "Should use browser automation to perform search",
+      "category": "v1_browser_automation"
+    },
+    {
+      "id": "browser_3",
+      "question": "Extract all links from the current page.",
+      "expected_behavior": "Should use AX Tree to find and extract links",
+      "category": "v1_browser_automation"
+    },
+    {
+      "id": "browser_4",
+      "question": "Click on the 'About' link if it exists.",
+      "expected_behavior": "Should find element via AX Tree and click",
+      "category": "v1_browser_automation"
+    },
+    {
+      "id": "browser_5",
+      "question": "Fill out a form with test data.",
+      "expected_behavior": "Should use browser automation to fill form fields",
+      "category": "v1_browser_automation"
+    }
+  ],
+  "v1_screen_share": [
+    {
+      "id": "screen_1",
+      "question": "Describe what you see on my screen.",
+      "expected_behavior": "Should use vision model to analyze screen content",
+      "category": "v1_screen_share"
+    },
+    {
+      "id": "screen_2",
+      "question": "Guide me step-by-step through this interface.",
+      "expected_behavior": "Should analyze UI and provide structured guidance",
+      "category": "v1_screen_share"
+    },
+    {
+      "id": "screen_3",
+      "question": "What buttons are visible on the screen?",
+      "expected_behavior": "Should identify UI elements via vision",
+      "category": "v1_screen_share"
+    },
+    {
+      "id": "screen_4",
+      "question": "Pin this frame and keep it in context.",
+      "expected_behavior": "Should pin frame for multi-step guidance",
+      "category": "v1_screen_share"
+    }
+  ],
+  "v2_windows_companion": [
+    {
+      "id": "windows_1",
+      "question": "Launch Notepad application.",
+      "expected_behavior": "Should use OS automation to launch app",
+      "category": "v2_windows_companion"
+    },
+    {
+      "id": "windows_2",
+      "question": "Switch to the Chrome browser window.",
+      "expected_behavior": "Should switch to running application",
+      "category": "v2_windows_companion"
+    },
+    {
+      "id": "windows_3",
+      "question": "Read the contents of a text file.",
+      "expected_behavior": "Should read file with proper allow-list check",
+      "category": "v2_windows_companion"
+    },
+    {
+      "id": "windows_4",
+      "question": "Take a screenshot of the current window.",
+      "expected_behavior": "Should capture screenshot with secret blurring",
+      "category": "v2_windows_companion"
+    },
+    {
+      "id": "windows_5",
+      "question": "Set Region-of-Control to the active window.",
+      "expected_behavior": "Should set ROC boundaries for automation",
+      "category": "v2_windows_companion"
+    }
+  ],
+  "v2_multi_agent": [
+    {
+      "id": "agent_1",
+      "question": "Search for information about Python, then open a browser to show examples.",
+      "expected_behavior": "Should coordinate RAG and Browser agents",
+      "category": "v2_multi_agent"
+    },
+    {
+      "id": "agent_2",
+      "question": "Find documents about automation, then launch an app to demonstrate.",
+      "expected_behavior": "Should coordinate RAG and OS agents",
+      "category": "v2_multi_agent"
+    },
+    {
+      "id": "agent_3",
+      "question": "Search my documents, then automate a browser task based on the findings.",
+      "expected_behavior": "Should plan and execute multi-step task",
+      "category": "v2_multi_agent"
+    }
+  ],
+  "v2_advanced_memory": [
+    {
+      "id": "mem_adv_1",
+      "question": "Create a relationship between two memories.",
+      "expected_behavior": "Should create memory relationship",
+      "category": "v2_advanced_memory",
+      "setup": "Create two memories and link them"
+    },
+    {
+      "id": "mem_adv_2",
+      "question": "Show me memories that are related to my project preferences.",
+      "expected_behavior": "Should traverse memory relationship graph",
+      "category": "v2_advanced_memory",
+      "setup": "Create related memories"
+    },
+    {
+      "id": "mem_adv_3",
+      "question": "Set expiration for a memory to 7 days.",
+      "expected_behavior": "Should set TTL policy for memory",
+      "category": "v2_advanced_memory",
+      "setup": "Create memory and set expiration"
+    },
+    {
+      "id": "mem_adv_4",
+      "question": "Show me analytics for my most used memories.",
+      "expected_behavior": "Should return memory effectiveness metrics",
+      "category": "v2_advanced_memory"
+    }
+  ],
+  "v2_panic_stop": [
+    {
+      "id": "panic_1",
+      "question": "Trigger panic stop during an active automation.",
+      "expected_behavior": "Should immediately cancel all automations",
+      "category": "v2_panic_stop"
+    },
+    {
+      "id": "panic_2",
+      "question": "Show me the automation status and history.",
+      "expected_behavior": "Should return current automation status",
+      "category": "v2_panic_stop"
+    }
+  ],
+  "budget_enforcement": [
+    {
+      "id": "budget_1",
+      "question": "Make 100 queries to test budget limits.",
+      "expected_behavior": "Should enforce daily budget and halt at limit",
+      "category": "budget_enforcement"
+    },
+    {
+      "id": "budget_2",
+      "question": "Query with context budget warning threshold.",
+      "expected_behavior": "Should warn at 80% context budget",
+      "category": "budget_enforcement"
+    }
+  ],
+  "project_scoping": [
+    {
+      "id": "project_1",
+      "question": "Search for information in project 'test-project'.",
+      "expected_behavior": "Should filter by project_id",
+      "category": "project_scoping",
+      "project_id": "test-project"
+    },
+    {
+      "id": "project_2",
+      "question": "Create a memory scoped to a specific project.",
+      "expected_behavior": "Should create project-scoped memory",
+      "category": "project_scoping",
+      "project_id": "test-project"
+    },
+    {
+      "id": "project_3",
+      "question": "List all memories for project 'test-project'.",
+      "expected_behavior": "Should return only project-scoped memories",
+      "category": "project_scoping",
+      "project_id": "test-project"
+    }
+  ],
+  "hybrid_search": [
+    {
+      "id": "hybrid_1",
+      "question": "Search using hybrid search (vector + keyword).",
+      "expected_behavior": "Should use both semantic and keyword matching",
+      "category": "hybrid_search",
+      "use_hybrid_search": true
+    },
+    {
+      "id": "hybrid_2",
+      "question": "Search using vector-only search.",
+      "expected_behavior": "Should use only semantic similarity",
+      "category": "hybrid_search",
+      "use_hybrid_search": false
+    }
+  ],
+  "document_filtering": [
+    {
+      "id": "filter_1",
+      "question": "Search only in document 'test-doc.pdf'.",
+      "expected_behavior": "Should filter results to specific document",
+      "category": "document_filtering",
+      "document_filter": "test-doc.pdf"
+    },
+    {
+      "id": "filter_2",
+      "question": "Find information across all documents.",
+      "expected_behavior": "Should search across all documents",
+      "category": "document_filtering"
+    }
+  ],
+  "cost_tracking": [
+    {
+      "id": "cost_1",
+      "question": "Query and check cost tracking headers.",
+      "expected_behavior": "Should include cost headers in response",
+      "category": "cost_tracking"
+    },
+    {
+      "id": "cost_2",
+      "question": "Make multiple queries and verify cost accumulation.",
+      "expected_behavior": "Should track cumulative costs",
+      "category": "cost_tracking"
+    }
+  ],
+  "uncertainty_protocol": [
+    {
+      "id": "uncertain_1",
+      "question": "Ask about information not in documents.",
+      "expected_behavior": "Should return uncertain with explicit reason",
+      "category": "uncertainty_protocol"
+    },
+    {
+      "id": "uncertain_2",
+      "question": "Query with low-confidence retrieval.",
+      "expected_behavior": "Should return uncertain if confidence below threshold",
+      "category": "uncertainty_protocol"
+    },
+    {
+      "id": "uncertain_3",
+      "question": "Ask ambiguous question without context.",
+      "expected_behavior": "Should request clarification",
+      "category": "uncertainty_protocol"
+    }
+  ],
+  "export_functionality": [
+    {
+      "id": "export_1",
+      "question": "Export conversation to PDF.",
+      "expected_behavior": "Should generate PDF with conversation history",
+      "category": "export_functionality"
+    },
+    {
+      "id": "export_2",
+      "question": "Export query results to PDF.",
+      "expected_behavior": "Should generate PDF with query and sources",
+      "category": "export_functionality"
+    }
+  ],
+  "multimodal_vision": [
+    {
+      "id": "vision_1",
+      "question": "Analyze this image and describe what you see.",
+      "expected_behavior": "Should use GPT-4o Vision to analyze image",
+      "category": "multimodal_vision",
+      "has_image": true
+    },
+    {
+      "id": "vision_2",
+      "question": "What text is visible in this image?",
+      "expected_behavior": "Should extract text from image via vision",
+      "category": "multimodal_vision",
+      "has_image": true
+    },
+    {
+      "id": "vision_3",
+      "question": "Describe the UI elements in this screenshot.",
+      "expected_behavior": "Should identify UI components via vision",
+      "category": "multimodal_vision",
+      "has_image": true
+    }
+  ],
+  "error_handling": [
+    {
+      "id": "error_1",
+      "question": "Query with invalid API key.",
+      "expected_behavior": "Should return graceful error message",
+      "category": "error_handling"
+    },
+    {
+      "id": "error_2",
+      "question": "Query with malformed request.",
+      "expected_behavior": "Should return validation error",
+      "category": "error_handling"
+    },
+    {
+      "id": "error_3",
+      "question": "Query when ChromaDB is unavailable.",
+      "expected_behavior": "Should handle database errors gracefully",
+      "category": "error_handling"
+    }
+  ],
+  "performance": [
+    {
+      "id": "perf_1",
+      "question": "Query response time should be under 5 seconds.",
+      "expected_behavior": "Should respond within performance target",
+      "category": "performance"
+    },
+    {
+      "id": "perf_2",
+      "question": "Handle 10 concurrent queries.",
+      "expected_behavior": "Should handle concurrent requests",
+      "category": "performance"
+    }
+  ]
+}

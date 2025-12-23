@@ -1,0 +1,14 @@
+{
+  "total_prompts": 0,
+  "successful": 0,
+  "failed": 0,
+  "average_score": 0.0,
+  "min_score": 0,
+  "max_score": 0,
+  "hallucination_count": 0,
+  "hallucination_rate": 0.0,
+  "results": [],
+  "timestamp": "2025-01-XXT00:00:00",
+  "note": "Initial baseline - will be updated after first successful evaluation run"
+}
+

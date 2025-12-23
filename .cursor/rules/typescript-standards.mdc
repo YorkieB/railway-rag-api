@@ -1,0 +1,53 @@
+---
+description: TypeScript and React coding standards for Next.js frontend (next-holo-ui)
+globs: ["next-holo-ui/**/*.{ts,tsx}"]
+alwaysApply: false
+---
+
+# TypeScript Code Standards
+
+## Strict Mode
+- **Strict mode enabled**: No `any` types, use proper interfaces
+- Always fix type errors properly
+
+## Path Aliases
+- Use `@/` for imports (configured in tsconfig.json)
+
+## React Patterns
+- Use hooks (`useState`, `useCallback`, `useEffect`)
+- Custom hooks in `hooks/` directory
+- Components in `components/` directory
+- Prefer hooks over class components
+
+## API Calls
+- Centralized in `lib/api.ts`
+- Always handle errors gracefully
+
+## Environment Variables
+- Use `NEXT_PUBLIC_` prefix for client-side vars
+
+## Common Patterns
+
+### Creating a React Component
+```typescript
+import { useState } from "react";
+
+export function MyComponent({ prop1, prop2 }: Props) {
+  const [state, setState] = useState<string>("");
+  
+  return (
+    <div className="tailwind-classes">
+      {/* Component JSX */}
+    </div>
+  );
+}
+```
+
+## File Naming
+- **TypeScript**: camelCase for files (`useMultimodalLive.ts`, `api.ts`)
+- **Components**: PascalCase (`ChatPanel.tsx`, `VoiceVideo.tsx`)
+
+## Dependencies
+- **Pin versions** in package.json
+- **Update carefully** - test after dependency updates
+- **Document breaking changes** if updating major versions

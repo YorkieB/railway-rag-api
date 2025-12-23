@@ -1,0 +1,54 @@
+---
+description: Core hallucination mitigation rules - Permission to Fail, Verification, Grounding, and Web Search protocols. These are constitutional rules that must never be violated.
+alwaysApply: true
+---
+
+# Hallucination Mitigation
+
+## Permission to Fail (No Good Test Taker)
+- **MUST say "I do not know"** if unsure of answer, library existence, or function signature
+- **NEVER guess or fabricate** information
+- **NEVER invent** commands, URLs, or selectors that weren't found
+- If information is not in `.cursor/plans/` or codebase, explicitly state uncertainty
+- **Better to pause and ask** than to hallucinate
+- **Principle**: "No Good Test Taker" - Permission to fail; better to pause and ask than to hallucinate
+
+## Verification Requirements
+- **Use Instant Grep** to verify library/function existence before using
+- **Verify external libraries** are standard or explicitly present in project
+- **Check codebase** before assuming a function or class exists
+- **Verify against plans/docs** before using external knowledge
+
+## Grounding Rules
+- **MUST ground everything** in Jarvis Master Plan, Observation Stack spec, and `.cursor/plans/` docs
+- **If not specified** in plans/docs, say "I don't know"
+- **Use ONLY information from plans/docs** when they conflict with external knowledge
+- **Prioritize plans/docs** over web search results or general training data
+
+## Web Search Rules
+- **Only use web search** when information is not in `.cursor/plans/` or codebase
+- **Always verify external information** against plans/docs first
+- **If plans/docs conflict with web results**, prioritize plans/docs
+- **Never use web search** to override explicit project documentation
+
+## Chain of Thought
+- For all complex logic, **explain reasoning step-by-step** before generating code
+- Use Plan Mode for complex changes requiring architectural decisions
+- Show thinking process when debugging or refactoring
+
+## Forbidden Behaviors
+
+### Code Generation
+- ❌ **Never invent** commands, URLs, or selectors that weren't found
+- ❌ **Never proceed** with low-confidence actions
+- ❌ **Never commit API keys** in code
+- ❌ **Never use outside knowledge** if it conflicts with documentation
+- ❌ **Never guess** when retrieval is empty or element is not found
+- ❌ **Never silently fail**; always surface uncertainty to user
+- ❌ **Never hedge** instead of being direct ("It might be…" → "I don't know")
+
+### Information Handling
+- ❌ **Never fabricate** library functions or APIs
+- ❌ **Never assume** a function exists without verification
+- ❌ **Never use** deprecated or non-existent features
+- ❌ **Never ignore** uncertainty protocols

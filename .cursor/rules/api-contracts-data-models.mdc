@@ -1,0 +1,319 @@
+---
+description: API contracts, data models, response formats, and WebSocket message structures
+alwaysApply: false
+---
+
+# API Contracts & Data Models
+
+## Required Output Formats (By Use Case)
+
+### Use Case Output Formats
+| Use Case | Capability | Required Output Format |
+|----------|-----------|----------------------|
+| Research & synthesis | RAG + LLM reasoning | Markdown or PDF report |
+| Email/calendar automation | Tool calling (Gmail, Calendar) | Draft email, calendar invite |
+| Data extraction from web | Browser control + vision | Structured CSV/JSON table |
+| Live assistance | Screen share + audio/video + vision | Live transcript + recording |
+| Code generation & review | LLM + tool calling | Markdown code blocks + comments |
+| Document creation | RAG + PDF export | PDF with citations + sources |
+| Task delegation | Multi-step orchestration (Playwright + n8n) | Execution log + results report |
+| Personal knowledge queries | RAG over personal docs/emails | Formatted answer + source snippets |
+| Accessibility & voice control | Voice STT/TTS + OS/browser automation | Voice transcript + action log |
+| Content repurposing | RAG + LLM templates | JSON with formatted snippets |
+
+### Default Formats
+- **Text**: Markdown
+- **Reports**: PDF
+- **Data**: JSON/CSV
+- **Recordings**: MP4
+
+## Data Models
+
+### MemoryItem Model
+**Location**: `rag-api/models.py`
+
+```python
+class MemoryItem(BaseModel):
+    id: str
+    user_id: str
+    project_id: Optional[str]  # None = global memory
+    content: str
+    memory_type: str  # "fact", "preference", "decision"
+    created_at: datetime
+    updated_at: datetime
+```
+
+**Rules**:
+- `id`: Unique identifier (UUID recommended)
+- `user_id`: Required, identifies owner
+- `project_id`: Optional, None means global memory
+- `memory_type`: Must be one of: "fact", "preference", "decision"
+- `created_at` and `updated_at`: Auto-managed timestamps
+
+### LiveSession Model
+**Location**: `rag-api/models.py`
+
+```python
+class LiveSession(BaseModel):
+    id: str
+    user_id: str
+    state: Literal["IDLE", "CONNECTING", "LIVE", "PAUSED", "ENDED"]
+    mode: Literal["LS1A", "LS1B", "LS1C", "LS2", "LS3"]
+    started_at: datetime
+    paused_at: Optional[datetime]
+    ended_at: Optional[datetime]
+    transcript_partial: str  # Real-time during LIVE/PAUSED
+    transcript_final: Optional[str]  # Finalized on ENDED
+    audio_minutes_used: float  # Cumulative
+    frames_processed: int  # For LS2/LS3
+    daily_budget_remaining: Dict[str, float]  # audioMin, videoTokens, screenTokens
+    recording_consent: bool  # true = raw AV stored; false = transcript only
+    secrets_blurred: List[str]  # Regex patterns blurred in screenshots
+    transcript_url: Optional[str]  # gs://bucket/transcripts/{id}.json
+    recording_url: Optional[str]  # gs://bucket/recordings/{id}.mp4 (if consented)
+```
+
+**State Machine Rules**:
+- **IDLE** → **CONNECTING**: When session creation initiated
+- **CONNECTING** → **LIVE**: When WebSocket connected and ready
+- **LIVE** → **PAUSED**: When budget exhausted or user pauses
+- **PAUSED** → **LIVE**: When user resumes or budget reset
+- **LIVE/PAUSED** → **ENDED**: When session terminated
+- **ENDED**: Terminal state (no transitions)
+
+**Mode Definitions**:
+- **LS1A**: Audio-only (STT + LLM + TTS)
+- **LS1B**: Audio + optional camera frames (0.5 fps max)
+- **LS1C**: Audio + avatar/presence (waveform visualization)
+- **LS2**: Audio + video call
+- **LS3**: Audio + screen share (1 fps default, 0.5 fps cost-control)
+
+## WebSocket Message Types
+
+### Multimodal Live WebSocket Messages
+**Endpoint**: `WS /multimodal-live/ws/{session_id}`
+
+**Supported Message Types**:
+- `text_input` - Text query → RAG query → Response
+- `video_frame` - Video frame → Vision analysis → Description
+- `audio_chunk` - Audio chunk → Acknowledgment (simplified)
+- `multimodal_query` - Combined RAG + Vision → Combined response
+- `close` - Close session
+
+**Message Format**:
+```json
+{
+  "type": "text_input",
+  "data": {
+    "text": "User query text"
+  }
+}
+```
+
+**Response Format**:
+```json
+{
+  "type": "response",
+  "data": {
+    "answer": "Response text",
+    "sources": [...],
+    "uncertain": false
+  }
+}
+```
+
+### Companion WebSocket Messages
+**Endpoint**: `WS /companion/ws/{session_id}`
+
+**Message Types**:
+- `audio_chunk` - Base64 PCM audio → Deepgram STT
+- `text_input` - Direct text input
+- `close` - Close session
+
+**Response Types**:
+- `audio_chunk` - Base64 MP3 audio → Browser playback
+- `transcript` - STT transcript
+- `error` - Error message
+
+## API Response Formats
+
+### RAG Query Response
+**Endpoint**: `POST /query`
+
+**Success Response**:
+```json
+{
+  "answer": "Based on your documents...",
+  "sources": [
+    {
+      "document_name": "Q3 Financials",
+      "chunk_index": 3,
+      "text": "...",
+      "score": 0.85
+    }
+  ],
+  "uncertain": false
+}
+```
+
+**Uncertain Response**:
+```json
+{
+  "answer": "I don't have information about X in your knowledge base.",
+  "sources": [],
+  "uncertain": true,
+  "suggestions": ["search the web", "ask you", "check documents again"]
+}
+```
+
+**Memory-Enhanced Response**:
+```json
+{
+  "answer": "Based on your documents and your previous preference...",
+  "sources": [...],
+  "memories_used": [
+    {
+      "id": "mem_123",
+      "content": "User prefers Slack notifications",
+      "type": "preference"
+    }
+  ],
+  "uncertain": false
+}
+```
+
+### Memory API Responses
+
+**POST /memory** (Create):
+```json
+{
+  "id": "mem_123",
+  "user_id": "user_456",
+  "project_id": null,
+  "content": "User prefers Slack notifications",
+  "memory_type": "preference",
+  "created_at": "2025-01-XXT...",
+  "updated_at": "2025-01-XXT..."
+}
+```
+
+**GET /memory** (List):
+```json
+{
+  "memories": [
+    {
+      "id": "mem_123",
+      "content": "...",
+      "memory_type": "preference",
+      "created_at": "..."
+    }
+  ],
+  "total": 10
+}
+```
+
+**GET /memory/search** (Search):
+```json
+{
+  "memories": [
+    {
+      "id": "mem_123",
+      "content": "...",
+      "score": 0.92
+    }
+  ],
+  "query": "preferred communication method"
+}
+```
+
+### Live Session API Responses
+
+**POST /multimodal-live/create-session**:
+```json
+{
+  "session_id": "session_abc123",
+  "state": "CONNECTING",
+  "mode": "LS1A",
+  "started_at": "2025-01-XXT...",
+  "daily_budget_remaining": {
+    "audioMin": 60,
+    "videoTokens": 50000,
+    "screenTokens": 50000
+  }
+}
+```
+
+**GET /multimodal-live/sessions/{session_id}**:
+```json
+{
+  "id": "session_abc123",
+  "state": "LIVE",
+  "mode": "LS1A",
+  "audio_minutes_used": 15.5,
+  "daily_budget_remaining": {
+    "audioMin": 44.5,
+    "videoTokens": 50000,
+    "screenTokens": 50000
+  },
+  "transcript_partial": "User: Hello... Jarvis: Hi there..."
+}
+```
+
+## Error Response Format
+
+### Standard Error Response
+```json
+{
+  "error": "Error message",
+  "code": "ERROR_CODE",
+  "details": {
+    "field": "Additional error details"
+  }
+}
+```
+
+### HTTP Status Codes
+- **200**: Success
+- **400**: Bad Request (validation error)
+- **401**: Unauthorized
+- **403**: Forbidden (blocked action)
+- **404**: Not Found
+- **429**: Too Many Requests (budget exhausted)
+- **500**: Internal Server Error
+
+## Request Validation Rules
+
+### Pydantic Models Required
+- **All API endpoints** must use Pydantic models for request/response validation
+- **WebSocket messages** should use Pydantic models (currently basic type checking)
+- **Error responses** must follow standard format
+
+### Required Fields
+- **User identification**: All requests must include user context (session or auth)
+- **Session validation**: WebSocket endpoints must validate `session_id` exists
+- **Budget checks**: All requests that consume resources must check budget first
+
+## Implementation Rules
+
+### When Adding New Endpoints
+1. ✅ **Define Pydantic models** for request/response
+2. ✅ **Document in OpenAPI/Swagger** spec
+3. ✅ **Follow standard error format** for errors
+4. ✅ **Include source citations** for RAG responses
+5. ✅ **Respect uncertainty protocol** in responses
+6. ✅ **Validate all inputs** before processing
+7. ✅ **Check budget limits** before resource-intensive operations
+
+### When Adding New Data Models
+1. ✅ **Use Pydantic BaseModel** for all models
+2. ✅ **Include type hints** for all fields
+3. ✅ **Add validation** for enum types (use `Literal` for fixed values)
+4. ✅ **Document model purpose** in docstring
+5. ✅ **Follow naming conventions** (PascalCase for models, snake_case for fields)
+
+### When Modifying Response Formats
+1. ✅ **Maintain backward compatibility** where possible
+2. ✅ **Version API** if breaking changes required
+3. ✅ **Update OpenAPI spec** immediately
+4. ✅ **Update frontend types** to match
+5. ✅ **Document changes** in changelog

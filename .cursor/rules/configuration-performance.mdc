@@ -1,0 +1,224 @@
+---
+description: Configuration defaults, performance targets, thresholds, and limits for all services
+alwaysApply: false
+---
+
+# Configuration & Performance Rules
+
+## Service Ports
+
+### Backend Services
+- **rag-api**: Port 8080 (default)
+- **companion-api**: Port 8080 (default)
+- **Note**: Use different ports for local development if running both
+
+### Frontend
+- **next-holo-ui**: Port 3000 (dev), Port 8080 (Railway/Vercel production)
+
+## Default Paths & Storage
+
+### ChromaDB Paths
+- **RAG Documents**: `./rag_knowledge_base` (default, configurable via `CHROMADB_PATH`)
+- **Companion Memory**: `./companion_memory` (default, configurable via `CHROMADB_PATH`)
+
+### Collections
+- **RAG**: `documents` (auto-created)
+- **Companion**: `companion_history` (auto-created)
+
+## Model Configuration Defaults
+
+### ElevenLabs TTS
+- **Model**: `eleven_flash_v2_5` (default)
+- **Voice ID**: `uju3wxzG5OhpWcoi3SMy` (default, configurable via `ELEVENLABS_VOICE_ID`)
+- **Configurable via**: `ELEVENLABS_MODEL` and `ELEVENLABS_VOICE_ID` environment variables
+
+### Deepgram STT
+- **Model**: `nova-2` (default)
+- **Configurable via**: `DEEPGRAM_MODEL` environment variable
+
+### OpenAI
+- **LLM Model**: `gpt-4o` (for answer generation, vision, companion)
+- **Embedding Model**: `text-embedding-3-small` (for RAG and memory)
+
+## Context & Memory Configuration
+
+### Sliding Window Pattern
+- **MAX_CONTEXT_TURNS**: 15 (companion conversation history)
+- **Rationale**: Manages context window size for LLM efficiency
+- **Implementation**: Automatic trimming when exceeding limit
+
+### Document Chunking
+- **Chunk Size**: 500 words
+- **Overlap**: 50 words
+- **Rationale**: Balances retrieval granularity with context preservation
+
+### Context Budget (MVP)
+- **MAX_CONTEXT_TOKENS**: 100,000 (default)
+- **WARN_THRESHOLD**: 0.8 (80% utilization)
+- **Enforcement**: Truncate/summarize when over budget, warn at 80%
+
+## Performance Targets
+
+### Latency Targets
+- **Companion TTFT (Time To First Token)**: Sub-1000ms total
+- **Companion Streaming**: Sub-800ms target
+- **Barge-in Latency**: 50ms (Deepgram VAD event → audio playback halt)
+- **Rationale**: Real-time feel, imperceptible delays
+
+### Frame Sampling (Live Sessions)
+- **LS1B (Camera)**: 0.5 fps max (optional)
+- **LS3 (Screen Share)**: 
+  - Default: 1 fps
+  - Cost-control: 0.5 fps (auto-downgrade at 80% budget)
+  - High-detail: 2 fps (user-selectable)
+- **Rationale**: Balance between token cost and detail
+
+### Screen Share Resolution
+- **Default**: 640x480 (VGA) for vision analysis
+- **Rationale**: Lower resolution = fewer tokens, sufficient for UI analysis
+- **User Selection**: User can select display area
+
+## Budget & Cost Limits
+
+### Daily Budgets (MVP)
+- **Text tokens**: 500K/day
+- **Vision tokens**: 50K/day
+- **Audio minutes**: 60/day
+- **Screenshots**: 100/day
+- **Dollars**: $10/day (configurable)
+
+### Per-Session Limits
+- **Text tokens**: 100K per session
+- **Vision tokens**: 10K per session
+- **Audio minutes**: 30 min per call
+- **Screenshots**: 20 per session
+
+### Budget Enforcement
+- **Warning Threshold**: 80% utilization
+- **Hard Halt**: 100% utilization
+- **Update Frequency**: Every 10 seconds during live sessions
+- **Action at 80%**: Return warning, auto-downgrade frame rate (vision)
+- **Action at 100%**: Stop session/feature, reject request
+
+## Evaluation Thresholds
+
+### RAG/Memory Evaluation
+- **Average Score**: ≥ 7.0 (PASS)
+- **Hallucination Rate**: ≤ 2% (PASS)
+- **Critical Prompts**: All must score ≥ 7.0 (PASS)
+- **Regression Tolerance**: ±10% score drop allowed
+
+### Browser Automation Evaluation
+- **Average Score**: ≥ 8.5 (PASS)
+- **Hallucination Rate**: ≤ 5% (PASS)
+- **Regression Tolerance**: ±10% score drop allowed
+
+### Live Sessions Evaluation
+- **Average Score**: ≥ 8.0 (PASS)
+- **Hallucination Rate**: ≤ 3% (PASS)
+- **Critical Prompts**: All must score ≥ 8.0 (PASS)
+- **Regression Tolerance**: ±5% score drop allowed
+
+### Regression Gates
+- **Score Drop > Tolerance**: Blocks merge
+- **Hallucination Increase**: Blocks merge
+- **Critical Prompt Failure**: Blocks merge
+
+## RAG Configuration
+
+### Retrieval Thresholds
+- **RAG_CONFIDENCE_THRESHOLD**: 0.6 (default)
+- **Below Threshold**: Return uncertain response
+- **Empty Retrieval**: Always return uncertain response
+
+### Hybrid Search
+- **Vector Similarity**: Primary (ChromaDB handles automatically)
+- **Keyword Matching**: Secondary (ChromaDB handles automatically)
+- **Rationale**: Improves retrieval accuracy for both semantic and exact matches
+
+## Live Session Configuration
+
+### Recording Settings
+- **Format**: MP4 H.264 with AAC audio
+- **Size**: ~500 KB per minute
+- **Quality**: Standard for web (low bandwidth)
+- **Note**: User can export to lossless if needed
+
+### Transcript Retention
+- **Default**: 30 days (auto-delete unless pinned)
+- **Configurable**: User can extend via export
+- **Rationale**: GDPR data minimization compliance
+
+### Storage Quota
+- **Included**: 5 GB/month (enough for ~10 hours of recordings)
+- **Overage**: $0.02 per GB
+- **Auto-cleanup**: Oldest recordings auto-deleted after 30 days
+
+## OS Automation Configuration
+
+### Max Concurrent Automations
+- **Default**: 1 (sequential) per device
+- **Rationale**: Multiple parallel automations on same device risk deadlock
+- **Rule**: Sequential execution is safer
+
+### Automation Indicator
+- **Visibility**: 20px banner at top, 5% opacity
+- **Auto-hide**: On window blur
+- **Rationale**: Minimal visual intrusion, doesn't obscure content
+
+### Panic Stop
+- **Keyboard Hook**: Ctrl+Alt+J
+- **Action**: Process termination
+- **Response Time**: Must be immediate (< 100ms)
+
+## Secret Detection Patterns
+
+### Auto-blur Sensitivity (Default)
+- **API Keys**: `sk-.*`, `[A-Za-z0-9_-]{40,}`
+- **Credit Cards**: `[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{4}`
+- **SSNs**: `[0-9]{3}-[0-9]{2}-[0-9]{4}`
+- **Configurable**: User can customize regex patterns for domain-specific PII
+- **Location**: `.cursorrules/secret-patterns.json` (future)
+
+## WebSocket Configuration
+
+### Message Types
+- **Supported Types**: `text_input`, `video_frame`, `audio_chunk`, `multimodal_query`, `close`
+- **Validation**: Should use Pydantic models (currently basic type checking)
+
+### Session Storage
+- **Current**: In-memory dict (`active_sessions`)
+- **Limitation**: Not persistent across restarts
+- **Future**: Consider persistent storage for production
+
+## Error Handling & Timeouts
+
+### Page Timeout (Browser)
+- **Default**: Browser default (configurable)
+- **Recovery**: Retry or pause on timeout
+
+### API Timeouts
+- **LLM Calls**: Use streaming to avoid long waits
+- **Embedding Calls**: Should complete within reasonable time
+- **WebSocket**: Handle disconnections gracefully
+
+## Implementation Rules
+
+### When Adding Configuration
+1. ✅ **Use Environment Variables** for all configurable values
+2. ✅ **Provide Sensible Defaults** for all optional settings
+3. ✅ **Document Defaults** in code comments and rules
+4. ✅ **Validate Configuration** on startup (fail fast if required values missing)
+5. ✅ **Make Performance Targets Explicit** in code comments
+
+### When Modifying Performance Targets
+1. ✅ **Update This Document** when changing targets
+2. ✅ **Test Against Targets** in evaluation suite
+3. ✅ **Document Rationale** for target changes
+4. ✅ **Consider Impact** on user experience
+
+### When Adding New Limits
+1. ✅ **Set Warning Threshold** at 80%
+2. ✅ **Set Hard Limit** at 100%
+3. ✅ **Provide Clear Feedback** to user when limits reached
+4. ✅ **Allow User Override** where appropriate (with confirmation)

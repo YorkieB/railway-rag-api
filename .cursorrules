@@ -1,0 +1,282 @@
+# Project Rules for RAG Knowledge Base with Multimodal Live
+
+## Project Overview
+This is a multi-service RAG (Retrieval-Augmented Generation) system with zero vendor lock-in:
+- **rag-api**: FastAPI backend with ChromaDB Vector Search, OpenAI embeddings, and multimodal WebSocket support
+- **next-holo-ui**: Next.js 14 + TypeScript frontend with holographic UI for multimodal voice/video
+- **companion-api**: Real-time AI companion service with Deepgram STT, OpenAI GPT-4o, and ElevenLabs TTS
+
+## Technology Stack
+
+### Backend (rag-api)
+- **Framework**: FastAPI 0.115.6
+- **Python**: 3.8+
+- **AI/ML**: 
+  - `openai>=1.0.0` for LLM answer generation (GPT-4o), embeddings (`text-embedding-3-small`), and vision analysis
+  - `chromadb>=0.4.0` for vector search
+- **Database**: ChromaDB (local/self-hosted, persistent storage)
+- **Deployment**: Railway (recommended) or any container host
+
+### Frontend (next-holo-ui)
+- **Framework**: Next.js 14.2.5 (Pages Router)
+- **Language**: TypeScript (strict mode)
+- **Styling**: Tailwind CSS 3.4.11
+- **UI**: Framer Motion for animations
+- **Deployment**: Vercel (recommended) or any Next.js host
+
+## Code Standards
+
+### Python (Backend)
+- Use type hints: `from typing import List, Optional`
+- Use Pydantic models for request/response validation
+- Lazy initialization for OpenAI API: `get_openai_client()` function pattern
+- Error handling: Use `HTTPException` with descriptive messages
+- Environment variables: Access via `os.getenv()`, never hardcode
+- WebSocket: Handle `WebSocketDisconnect` exceptions properly
+- CORS: Configured for WebRTC/WebSocket support
+- Uncertainty Protocol: When RAG retrieval is empty or low-confidence, return explicit uncertainty response instead of guessing
+
+### TypeScript (Frontend)
+- **Strict mode enabled**: No `any` types, use proper interfaces
+- **Path aliases**: Use `@/` for imports (configured in tsconfig.json)
+- **React patterns**: 
+  - Use hooks (`useState`, `useCallback`, `useEffect`)
+  - Custom hooks in `hooks/` directory
+  - Components in `components/` directory
+- **API calls**: Centralized in `lib/api.ts`
+- **Environment variables**: Use `NEXT_PUBLIC_` prefix for client-side vars
+
+## Project Structure
+
+```
+project-backup/
+├── rag-api/              # FastAPI backend
+│   ├── app.py            # Main application (ChromaDB-based)
+│   ├── requirements.txt
+│   └── Dockerfile
+├── next-holo-ui/        # Next.js frontend
+│   ├── components/      # React components
+│   ├── hooks/          # Custom React hooks
+│   ├── lib/            # Utilities and API client
+│   ├── pages/          # Next.js pages
+│   └── styles/         # Global styles
+└── knowledge-base-ui/   # Streamlit UI (legacy)
+```
+
+## Important Conventions
+
+### API Endpoints
+- **RAG Query**: `POST /query` - Hybrid search with ChromaDB
+- **Document Upload**: `POST /upload` - PDF/DOCX/TXT/MD support
+- **Multimodal Live**: 
+  - `POST /multimodal-live/create-session` - Create session
+  - `WS /multimodal-live/ws/{session_id}` - WebSocket connection
+  - `GET/DELETE /multimodal-live/sessions/{session_id}` - Session management
+
+### Environment Variables
+
+**Backend (rag-api):**
+- `OPENAI_API_KEY` - Required: OpenAI API key for LLM answer generation, embeddings, and vision analysis
+- `CHROMADB_PATH` - Optional: ChromaDB storage path (default: `./rag_knowledge_base`)
+
+**Frontend (next-holo-ui):**
+- `NEXT_PUBLIC_API_BASE` - Required: Backend API URL (HTTPS for production)
+
+### Multimodal Live Implementation
+- Current implementation uses OpenAI GPT-4o for multimodal processing
+- WebSocket handles: text_input, audio_chunk, video_frame, multimodal_query
+- Vision uses GPT-4o model with vision capabilities
+- Audio processing sends acknowledgments (full streaming requires SDK integration)
+- Session management: Store in `active_sessions` dict with config and timestamp
+
+### ChromaDB Configuration
+- **Storage**: Local persistent storage (default: `./rag_knowledge_base`)
+- **Collection**: `documents` (auto-created)
+- **Vector Search**: Uses hybrid search (vector similarity + text search)
+- **Embeddings**: Generated using OpenAI `text-embedding-3-small` model
+
+## Coding Guidelines
+
+### When Adding Features
+1. **Backend**: Add endpoints to `app.py` (main application file)
+2. **Frontend**: Create components in `components/`, hooks in `hooks/`
+3. **API Client**: Add functions to `lib/api.ts` for API calls
+4. **Types**: Define in `types.ts` for shared types
+5. **Error Handling**: Always handle errors gracefully with user-friendly messages
+
+### When Modifying Code
+- **Never remove existing comments** unless obsolete
+- **Preserve existing functionality** unless explicitly asked to change
+- **Show context** when making changes (include surrounding code)
+- **Test locally** before suggesting deployment changes
+
+### Security
+- **Never commit API keys** - use environment variables
+- **CORS**: Currently allows all origins (`*`) - should be restricted in production
+- **API Keys**: Store in environment variables, never in code
+- **WebSocket**: Validate session_id before processing
+
+### Deployment
+- **Backend**: Deploy to Railway (recommended) or any container host
+- **Frontend**: Deploy to Vercel (recommended) or any Next.js host
+- **Memory**: Railway provides persistent volumes automatically
+- **Ports**: Backend 8080 (Railway sets `$PORT`), Frontend 3000 (dev) / Vercel auto
+
+## Common Patterns
+
+### Creating a New API Endpoint
+```python
+@app.post("/endpoint")
+async def my_endpoint(request: MyRequestModel):
+    try:
+        # Implementation
+        return {"status": "success", "data": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+```
+
+### Creating a React Component
+```typescript
+import { useState } from "react";
+
+export function MyComponent({ prop1, prop2 }: Props) {
+  const [state, setState] = useState<string>("");
+  
+  return (
+    <div className="tailwind-classes">
+      {/* Component JSX */}
+    </div>
+  );
+}
+```
+
+### WebSocket Message Handling
+```python
+data = await websocket.receive_json()
+if data.get("type") == "message_type":
+    # Process message
+    await websocket.send_json({"type": "response", "data": result})
+```
+
+## File Naming
+- **Python**: snake_case (`app.py`, `rag_system.py`)
+- **TypeScript**: camelCase for files (`useMultimodalLive.ts`, `api.ts`)
+- **Components**: PascalCase (`ChatPanel.tsx`, `VoiceVideo.tsx`)
+
+## Dependencies
+- **Pin versions** in requirements.txt and package.json
+- **Update carefully** - test after dependency updates
+- **Document breaking changes** if updating major versions
+
+## Testing
+- **Backend**: Test endpoints with `curl` or `Invoke-WebRequest` (PowerShell)
+- **Frontend**: Test in browser with dev server (`npm run dev`)
+- **WebSocket**: Test with browser DevTools or WebSocket client
+
+## Documentation
+- Keep README.md files updated
+- Document new endpoints in code comments
+- Update deployment guides when deployment process changes
+
+## Governance Principles
+
+### Zero Vendor Lock-in
+- Use platform-agnostic solutions (ChromaDB, standard APIs)
+- Avoid proprietary cloud services that create lock-in
+- Prefer self-hosted or open-source alternatives
+
+### Global Uncertainty Protocol
+When Jarvis must say "Uncertain":
+- **RAG retrieval fails**: No relevant chunks found, or score below threshold
+- **Browser element not found**: Element not in AX Tree after Accessibility Tree check
+- **Live session errors**: Audio/video transcription fails, network drops
+- **OS action blocked**: Permission denied, app not found
+- **Ambiguous user intent**: Multiple interpretations; ask for clarification instead of guessing
+
+**Implementation**:
+- Chat: "I'm not confident about [fact]. I'd need to [action] to verify."
+- Browser: If element not in AX Tree → Uncertainty protocol instead of hallucinating selector
+- RAG: If retrieval returns no chunks → Say so explicitly; don't fabricate
+- Live: If audio glitches or video drops → Report failure, don't proceed
+
+### Privacy & Retention Principles
+- **Data Residency**: Text data (chat, RAG) stays on backend
+- **Secrets**: API keys, passwords never leave local device
+- **Live Sessions**: NOT stored by default; transcripts only (unless explicitly enabled)
+- **Retention**: Chat messages 90 days (default), RAG documents indefinite (user controls), Live transcripts 30 days
+- **Redaction**: Credit cards, SSNs, API keys, passwords redacted before logging
+
+## Hallucination Mitigation
+
+### Permission to Fail
+- **MUST say "I do not know"** if unsure of answer, library existence, or function signature
+- **NEVER guess or fabricate** information
+- **NEVER invent** commands, URLs, or selectors that weren't found
+- If information is not in `.cursor/plans/` or codebase, explicitly state uncertainty
+
+### Verification Requirements
+- **Use Instant Grep** to verify library/function existence before using
+- **Verify external libraries** are standard or explicitly present in project
+- **Check codebase** before assuming a function or class exists
+- **Verify against plans/docs** before using external knowledge
+
+### Grounding Rules
+- **MUST ground everything** in Jarvis Master Plan, Observation Stack spec, and `.cursor/plans/` docs
+- **If not specified** in plans/docs, say "I don't know"
+- **Use ONLY information from plans/docs** when they conflict with external knowledge
+- **Prioritize plans/docs** over web search results or general training data
+
+### Web Search Rules
+- **Only use web search** when information is not in `.cursor/plans/` or codebase
+- **Always verify external information** against plans/docs first
+- **If plans/docs conflict with web results**, prioritize plans/docs
+- **Never use web search** to override explicit project documentation
+
+### Chain of Thought
+- For all complex logic, **explain reasoning step-by-step** before generating code
+- Use Plan Mode for complex changes requiring architectural decisions
+- Show thinking process when debugging or refactoring
+
+## Forbidden Behaviors
+
+### Code Generation
+- ❌ **Never invent** commands, URLs, or selectors that weren't found
+- ❌ **Never proceed** with low-confidence actions
+- ❌ **Never commit API keys** in code
+- ❌ **Never use outside knowledge** if it conflicts with documentation
+- ❌ **Never guess** when retrieval is empty or element is not found
+- ❌ **Never silently fail**; always surface uncertainty to user
+- ❌ **Never hedge** instead of being direct ("It might be…" → "I don't know")
+
+### Information Handling
+- ❌ **Never fabricate** library functions or APIs
+- ❌ **Never assume** a function exists without verification
+- ❌ **Never use** deprecated or non-existent features
+- ❌ **Never ignore** uncertainty protocols
+
+## Code Standards for Uncertainty
+
+### RAG Responses
+- **Implement uncertainty protocol** in RAG responses
+- **Never guess** when retrieval is empty
+- **Always cite sources** when available
+- **Explicitly state** when information is not available
+- Return structured uncertainty response: `{"uncertain": true, "message": "I don't have information about X. Would you like me to [search the web / ask you / check your documents again]?"}`
+
+### Error Handling
+- Always handle errors gracefully with user-friendly messages
+- Surface uncertainty explicitly, don't hide failures
+- Provide actionable alternatives when information is unavailable
+
+## Notes
+- The main backend file is `app.py` (ChromaDB-based)
+- Multimodal Live uses WebSocket for real-time communication
+- ChromaDB is used for vector storage and hybrid search (platform-agnostic)
+- Frontend uses Next.js Pages Router (not App Router)
+- TypeScript strict mode is enabled - fix type errors properly
+- All AI responses must follow uncertainty protocol when information is unavailable
+
+
+
+
+

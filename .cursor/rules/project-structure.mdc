@@ -1,0 +1,125 @@
+---
+description: Project structure, conventions, and general coding guidelines
+alwaysApply: false
+---
+
+# Project Structure & Conventions
+
+## Project Structure
+```
+project-backup/
+├── rag-api/              # FastAPI backend
+│   ├── app.py            # Main application (ChromaDB-based)
+│   ├── requirements.txt
+│   └── Dockerfile
+├── next-holo-ui/        # Next.js frontend
+│   ├── components/      # React components
+│   ├── hooks/          # Custom React hooks
+│   ├── lib/            # Utilities and API client
+│   ├── pages/          # Next.js pages
+│   └── styles/         # Global styles
+└── companion-api/       # Real-time AI companion service
+```
+
+## Coding Guidelines
+
+### When Adding Features
+1. **Backend**: Add endpoints to `app.py` (main application file)
+2. **Frontend**: Create components in `components/`, hooks in `hooks/`
+3. **API Client**: Add functions to `lib/api.ts` for API calls
+4. **Types**: Define in `types.ts` for shared types
+5. **Error Handling**: Always handle errors gracefully with user-friendly messages
+
+### Dependency Management
+- **Verify Library Versions**: Check `requirements.txt` and `package.json` before adding dependencies
+- **Pin Versions**: Use exact versions for critical dependencies (e.g., `fastapi==0.115.6`)
+- **Version Ranges**: Use `>=` for non-critical dependencies (e.g., `openai>=1.0.0`)
+- **Update Carefully**: Test after dependency updates, document breaking changes
+- **Check Compatibility**: Verify new dependencies don't conflict with existing ones
+
+### When Modifying Code
+- **Never remove existing comments** unless obsolete
+- **Preserve existing functionality** unless explicitly asked to change
+- **Show context** when making changes (include surrounding code)
+- **Test locally** before suggesting deployment changes
+
+### Security
+- **Never commit API keys** - use environment variables
+- **CORS**: Currently allows all origins (`*`) - should be restricted in production
+- **API Keys**: Store in environment variables, never in code
+- **WebSocket**: Validate session_id before processing
+
+### Deployment
+- **Backend**: Deploy to Railway (recommended) or any container host
+- **Frontend**: Deploy to Vercel (recommended) or any Next.js host
+- **Memory**: Railway provides persistent volumes automatically
+- **Ports**: Backend 8080 (Railway sets `$PORT`), Frontend 3000 (dev) / Vercel auto
+
+## Testing
+- **Backend**: Test endpoints with `curl` or `Invoke-WebRequest` (PowerShell)
+- **Frontend**: Test in browser with dev server (`npm run dev`)
+- **WebSocket**: Test with browser DevTools or WebSocket client
+
+## Documentation Requirements
+
+### Code Documentation
+- **Docstrings**: Include for all public functions (Python)
+- **Comments**: Document complex logic, not obvious code
+- **Type Hints**: Required for all functions (Python: `from typing import List, Optional`)
+- **Never remove existing comments** unless obsolete
+
+### API Documentation
+- **Document new endpoints** in code comments
+- **Update OpenAPI/Swagger docs** when adding endpoints
+- **Document error codes** and response formats
+- **Include examples** for all endpoints
+
+### Project Documentation
+- **Keep README.md files updated** when structure changes
+- **Update deployment guides** when deployment process changes
+- **Document configuration** in code comments and README
+- **Update AGENTS.MD** when adding new patterns or libraries
+
+### UI Transparency Requirements
+
+#### RAG/Memory Transparency
+- **Sources Panel**: Must show which documents/memories were used for each answer
+- **Citation Display**: Show document name, chunk index, and score for each source
+- **Uncertainty Display**: Display "No relevant context found" message when uncertain
+- **Memory Citations**: Show memory citations when memories are used in responses
+- **Source Snippets**: Display relevant text snippets from sources
+
+#### Budget & Context Status
+- **Budget Status Component**: Display progress bars for:
+  - Context usage (tokens)
+  - Daily budget (tokens, cost, reset time)
+- **Warnings**: Show warnings at 80% budget utilization
+- **Error State**: Show error state at 100% budget (hard halt)
+- **Cost Headers**: Display cost info from response headers (`X-Cost-Tokens`, `X-Cost-Dollars`)
+
+#### Memory Controls
+- **Memory Panel**: UI to toggle global/project memory on/off
+- **Private Session Mode**: Checkbox to enter private-session mode (no memory writes)
+- **Memory Management**: List, search, edit, and delete memory records
+- **Memory Visibility**: Show which memories were used in responses
+
+#### Implementation Requirements
+- **Always show sources** when RAG documents are used
+- **Always show uncertainty** when no relevant context found
+- **Always show budget status** in UI (visible to user)
+- **Always show memory citations** when memories are used
+- **Never hide** transparency information from user
+
+### When Adding Features
+- Document new endpoints in code comments
+- Update README if structure changes
+- Update deployment guides if deployment changes
+- Keep AGENTS.MD updated with new patterns
+
+## Notes
+- The main backend file is `app.py` (ChromaDB-based)
+- Multimodal Live uses WebSocket for real-time communication
+- ChromaDB is used for vector storage and hybrid search (platform-agnostic)
+- Frontend uses Next.js Pages Router (not App Router)
+- TypeScript strict mode is enabled - fix type errors properly
+- All AI responses must follow uncertainty protocol when information is unavailable
