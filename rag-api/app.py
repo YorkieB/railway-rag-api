@@ -68,7 +68,44 @@ from models import (
 )
 # Using ChromaDB's built-in OpenAI embedding function and OpenAI for answer generation
 
-app = FastAPI(title="RAG Knowledge Base API - ChromaDB + OpenAI Edition")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Create default admin user if no users exist
+    try:
+        users = user_manager.list_users()
+        if len(users) == 0:
+            # Create default admin user
+            default_email = os.getenv("DEFAULT_ADMIN_EMAIL", "admin@jarvisb.app")
+            default_password = os.getenv("DEFAULT_ADMIN_PASSWORD", "Admin123!")
+            default_username = os.getenv("DEFAULT_ADMIN_USERNAME", "admin")
+            
+            try:
+                result = user_manager.create_user(
+                    email=default_email,
+                    password=default_password,
+                    username=default_username,
+                    is_admin=True  # Explicitly set admin (first user becomes admin anyway)
+                )
+                print(f"✅ Default admin user created: {default_email}")
+                print(f"   Username: {default_username}")
+                print(f"   Password: {default_password}")
+                print(f"   ⚠️  Please change the default password after first login!")
+            except Exception as e:
+                print(f"⚠️  Warning: Could not create default admin user: {e}")
+        else:
+            print(f"✅ Found {len(users)} existing user(s), skipping default admin creation")
+    except Exception as e:
+        print(f"⚠️  Warning: Error checking for default admin user: {e}")
+    
+    yield  # App is running
+    
+    # Shutdown (if needed)
+    pass
+
+app = FastAPI(
+    title="RAG Knowledge Base API - ChromaDB + OpenAI Edition",
+    lifespan=lifespan
+)
 
 # Add CORS middleware for WebRTC
 app.add_middleware(
