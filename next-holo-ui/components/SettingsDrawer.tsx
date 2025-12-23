@@ -16,6 +16,8 @@ type Props = {
   onOpenAiKeyChange: (val: string) => void;
   ttsEnabled: boolean;
   onTtsEnabledChange: (val: boolean) => void;
+  jarvisEnabled: boolean;
+  onJarvisEnabledChange: (val: boolean) => void;
 };
 
 export function SettingsDrawer({
@@ -32,7 +34,9 @@ export function SettingsDrawer({
   openAiKey,
   onOpenAiKeyChange,
   ttsEnabled,
-  onTtsEnabledChange
+  onTtsEnabledChange,
+  jarvisEnabled,
+  onJarvisEnabledChange
 }: Props) {
   const [mounted, setMounted] = useState(false);
 
@@ -62,16 +66,36 @@ export function SettingsDrawer({
               </button>
             </div>
             <div className="space-y-4">
-              <Field label="API Base URL" value={apiBase} onChange={onApiBaseChange} placeholder="https://your-api.run.app" />
-              <Field label="Gemini API Key (client use optional)" value={geminiKey} onChange={onGeminiKeyChange} placeholder="sk-..." />
-              <Field label="ElevenLabs API Key" value={elevenLabsKey} onChange={onElevenLabsKeyChange} placeholder="elevenlabs..." />
-              <Field label="ElevenLabs Voice ID" value={elevenLabsVoice} onChange={onElevenLabsVoiceChange} placeholder="voice id" />
-              <Field label="OpenAI API Key" value={openAiKey} onChange={onOpenAiKeyChange} placeholder="sk-..." />
-              <ToggleRow
-                label="Play assistant responses (ElevenLabs TTS)"
-                checked={ttsEnabled}
-                onChange={onTtsEnabledChange}
-              />
+              <div className="border-b border-gray-200 pb-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Jarvis Activation</h3>
+                <ToggleRow
+                  label="Activate Jarvis Companion"
+                  checked={jarvisEnabled}
+                  onChange={onJarvisEnabledChange}
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  Enable live conversation with Jarvis. Say &quot;Hi Jarvis&quot; to start a conversation. Jarvis can access the web for real-time information.
+                </p>
+              </div>
+              
+              <div className="border-b border-gray-200 pb-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">API Keys</h3>
+                <Field label="API Base URL" value={apiBase} onChange={onApiBaseChange} placeholder="https://your-api.run.app" />
+                <Field label="OpenAI API Key" value={openAiKey} onChange={onOpenAiKeyChange} placeholder="sk-..." />
+                <Field label="ElevenLabs API Key" value={elevenLabsKey} onChange={onElevenLabsKeyChange} placeholder="elevenlabs..." />
+                <Field label="ElevenLabs Voice ID" value={elevenLabsVoice} onChange={onElevenLabsVoiceChange} placeholder="voice id" />
+                <Field label="Gemini API Key (client use optional)" value={geminiKey} onChange={onGeminiKeyChange} placeholder="sk-..." />
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Audio Settings</h3>
+                <ToggleRow
+                  label="Play assistant responses (ElevenLabs TTS)"
+                  checked={ttsEnabled}
+                  onChange={onTtsEnabledChange}
+                />
+              </div>
+              
               <p className="text-xs text-gray-600">
                 Keys are stored locally in your browser (localStorage). Gemini Live WS uses the backend environment key; client key is optional for client-side calls.
               </p>

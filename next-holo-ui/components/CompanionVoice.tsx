@@ -5,9 +5,10 @@ import { motion } from "framer-motion";
 
 type Props = {
   apiBase: string;
+  jarvisEnabled?: boolean;
 };
 
-export function CompanionVoice({ apiBase: companionApiBase }: Props) {
+export function CompanionVoice({ apiBase: companionApiBase, jarvisEnabled = false }: Props) {
   const [client, setClient] = useState<CompanionClient | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "connecting" | "connected" | "error">("idle");
@@ -219,18 +220,24 @@ export function CompanionVoice({ apiBase: companionApiBase }: Props) {
   return (
     <div className="card p-4 md:p-6 space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h2 className="text-xl font-semibold text-gray-900">AI Companion (Real-Time)</h2>
+        <h2 className="text-xl font-semibold text-gray-900">Jarvis Companion (Live)</h2>
         <span className="chip">
           <span className={`inline-block h-2 w-2 rounded-full ${statusChip.color} mr-2`} aria-hidden="true" />
           {statusChip.label}
         </span>
       </div>
 
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-2">
+        <p className="text-xs text-blue-800">
+          💬 <strong>Say "Hi Jarvis"</strong> to start a conversation. Jarvis can access the web for live information and will respond naturally.
+        </p>
+      </div>
+
       <div className="flex flex-wrap gap-3">
         <button
           onClick={status === "connected" ? stopSession : startSession}
           className="btn-primary text-sm tap-target disabled:opacity-60 disabled:cursor-not-allowed"
-          disabled={status === "connecting"}
+          disabled={status === "connecting" || !jarvisEnabled}
           type="button"
         >
           {status === "connected" ? "Stop Session" : status === "connecting" ? "Connecting..." : "Start Session"}

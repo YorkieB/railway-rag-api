@@ -4,6 +4,7 @@ import { Hero } from "@/components/Hero";
 import { ChatPanel } from "@/components/ChatPanel";
 import { ArtifactPanel } from "@/components/ArtifactPanel";
 import { VoiceVideo } from "@/components/VoiceVideo";
+import { CompanionVoice } from "@/components/CompanionVoice";
 import { ScreenSharePanel } from "@/components/ScreenSharePanel";
 import { BrowserPanel } from "@/components/BrowserPanel";
 import { ExportPanel } from "@/components/ExportPanel";
@@ -38,6 +39,7 @@ export default function Home() {
   const [elevenVoice, setElevenVoice] = useLocalStorage("holo-eleven-voice", defaultVoice);
   const [openAiKey, setOpenAiKey] = useLocalStorage("holo-openai-key", "");
   const [ttsEnabledRaw, setTtsEnabledRaw] = useLocalStorage("holo-tts-enabled", "true");
+  const [jarvisEnabledRaw, setJarvisEnabledRaw] = useLocalStorage("holo-jarvis-enabled", "false");
 
   const [apiBase, setApiBase] = useState(defaultApi);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -51,6 +53,7 @@ export default function Home() {
   const chatRef = useRef<HTMLDivElement | null>(null);
 
   const ttsEnabled = ttsEnabledRaw === "true";
+  const jarvisEnabled = jarvisEnabledRaw === "true";
 
   useEffect(() => {
     if (apiReady) {
@@ -158,6 +161,8 @@ export default function Home() {
             />
           </div>
         );
+      case "companion-voice":
+        return <CompanionVoice apiBase={companionApiBaseFromEnv()} jarvisEnabled={jarvisEnabled} />;
       case "voice-video":
         return <VoiceVideo apiBase={apiBase} elevenLabsKey={elevenKey} elevenLabsVoice={elevenVoice} ttsEnabled={ttsEnabled} />;
       case "screen-share":
@@ -247,6 +252,8 @@ export default function Home() {
         onOpenAiKeyChange={setOpenAiKey}
         ttsEnabled={ttsEnabled}
         onTtsEnabledChange={val => setTtsEnabledRaw(val ? "true" : "false")}
+        jarvisEnabled={jarvisEnabled}
+        onJarvisEnabledChange={val => setJarvisEnabledRaw(val ? "true" : "false")}
       />
     </>
   );

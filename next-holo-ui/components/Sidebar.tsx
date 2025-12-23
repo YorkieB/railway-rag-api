@@ -5,6 +5,7 @@ import clsx from "clsx";
 
 export type PanelId =
   | "home"
+  | "companion-voice"
   | "voice-video"
   | "screen-share"
   | "browser"
@@ -33,6 +34,7 @@ type SidebarItem = {
 
 const sidebarItems: SidebarItem[] = [
   { id: "home", label: "Home", icon: "🏠" },
+  { id: "companion-voice", label: "Jarvis Companion", icon: "💬" },
   { id: "voice-video", label: "Voice/Video", icon: "🎤" },
   { id: "screen-share", label: "Screen Share", icon: "🖥️" },
   { id: "browser", label: "Browser", icon: "🌐" },
