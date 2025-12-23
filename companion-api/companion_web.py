@@ -560,16 +560,17 @@ class WebCompanion:
                 "ttft_ms": ttft
             })
             
-            # Stream audio chunks to browser
-            for chunk in audio_stream:
-                if chunk:
-                    # Encode audio chunk as base64 for browser
-                    audio_b64 = base64.b64encode(chunk).decode('utf-8')
-                    await self.send_to_browser({
-                        "type": "audio_chunk",
-                        "audio": audio_b64,
-                        "format": "mp3"
-                    })
+            # Stream audio chunks to browser (if we have audio)
+            if audio_stream:
+                for chunk in audio_stream:
+                    if chunk:
+                        # Encode audio chunk as base64 for browser
+                        audio_b64 = base64.b64encode(chunk).decode('utf-8')
+                        await self.send_to_browser({
+                            "type": "audio_chunk",
+                            "audio": audio_b64,
+                            "format": "mp3"
+                        })
             
             total_time = (time.time() - start_time) * 1000
             print(Fore.GREEN + f"[Total: {total_time:.0f}ms]\n")
