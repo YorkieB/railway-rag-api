@@ -229,7 +229,7 @@ export function CompanionVoice({ apiBase: companionApiBase, jarvisEnabled = fals
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-2">
         <p className="text-xs text-blue-800">
-          💬 <strong>Say "Hi Jarvis"</strong> to start a conversation. Jarvis can access the web for live information and will respond naturally.
+          💬 <strong>Say &quot;Hi Jarvis&quot;</strong> to start a conversation. Jarvis can access the web for live information and will respond naturally.
         </p>
       </div>
 
