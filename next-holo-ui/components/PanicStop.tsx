@@ -9,7 +9,10 @@ import {
   type PanicStatus,
   type AutomationStatus,
   type AutomationConsole,
+  apiBaseFromEnv,
 } from "@/lib/api";
+
+const API_BASE = apiBaseFromEnv();
 
 export function PanicStop() {
   const [panicStatus, setPanicStatus] = useState<PanicStatus | null>(null);
@@ -21,9 +24,9 @@ export function PanicStop() {
   const refreshStatus = useCallback(async () => {
     try {
       const [panic, automation, consoleData] = await Promise.all([
-        fetch(`${API_BASE}/windows/panic/status`).then(r => r.json()),
-        fetch(`${API_BASE}/windows/automation/status`).then(r => r.json()),
-        fetch(`${API_BASE}/windows/automation/console?limit=10`).then(r => r.json()),
+        getPanicStatus(API_BASE),
+        getAutomationStatus(API_BASE),
+        getAutomationConsole(API_BASE, 10),
       ]);
       setPanicStatus(panic);
       setAutomationStatus(automation);
@@ -48,8 +51,7 @@ export function PanicStop() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/windows/panic/stop`, { method: "POST" });
-      if (!response.ok) throw new Error(`Failed to trigger panic stop: ${response.statusText}`);
+      await triggerPanicStop(API_BASE);
       await refreshStatus();
       alert("Panic stop triggered successfully!");
     } catch (err) {
@@ -76,20 +78,20 @@ export function PanicStop() {
   }, [handleKeyboardShortcut]);
 
   return (
-    <div className="p-6 bg-gray-900 text-white rounded-lg">
+    <div className="card p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold">Panic Stop & Automation Status</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Panic Stop & Automation Status</h2>
         <button
           onClick={handlePanicStop}
           disabled={isLoading || !panicStatus?.active_automations.length}
-          className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded font-semibold"
+          className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed rounded font-semibold text-white transition-colors"
         >
           {isLoading ? "Stopping..." : "PANIC STOP (Ctrl+Alt+J)"}
         </button>
       </div>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-900 text-red-100 rounded">
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-800 rounded">
           Error: {error}
         </div>
       )}
@@ -97,37 +99,37 @@ export function PanicStop() {
       {/* Current Automation Status */}
       {automationStatus && (
         <div className="mb-6">
-          <h3 className="text-xl font-semibold mb-2">Current Automation</h3>
+          <h3 className="text-xl font-semibold mb-2 text-gray-900">Current Automation</h3>
           {automationStatus.automation ? (
-            <div className="bg-gray-800 p-4 rounded">
+            <div className="bg-gray-50 border border-gray-200 p-4 rounded">
               <div className="flex items-center justify-between mb-2">
-                <span className="font-semibold">{automationStatus.automation.action_description}</span>
+                <span className="font-semibold text-gray-900">{automationStatus.automation.action_description}</span>
                 <span
-                  className={`px-2 py-1 rounded text-sm ${
+                  className={`px-2 py-1 rounded text-sm text-white ${
                     automationStatus.status === "active"
-                      ? "bg-green-600"
+                      ? "bg-green-500"
                       : automationStatus.status === "paused"
-                      ? "bg-yellow-600"
-                      : "bg-gray-600"
+                      ? "bg-yellow-500"
+                      : "bg-gray-500"
                   }`}
                 >
                   {automationStatus.status.toUpperCase()}
                 </span>
               </div>
-              <div className="text-sm text-gray-300">
+              <div className="text-sm text-gray-700">
                 <div>Step: {automationStatus.automation.current_step} / {automationStatus.automation.total_steps}</div>
                 {automationStatus.elapsed_seconds !== null && (
                   <div>Elapsed: {Math.floor(automationStatus.elapsed_seconds)}s</div>
                 )}
                 {automationStatus.show_banner && (
-                  <div className="mt-2 p-2 bg-yellow-900 text-yellow-100 rounded">
+                  <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded">
                     ⚠️ Long-running automation detected
                   </div>
                 )}
               </div>
             </div>
           ) : (
-            <div className="bg-gray-800 p-4 rounded text-gray-400">No active automation</div>
+            <div className="bg-gray-50 border border-gray-200 p-4 rounded text-gray-500">No active automation</div>
           )}
         </div>
       )}
@@ -135,12 +137,12 @@ export function PanicStop() {
       {/* Active Automations */}
       {panicStatus && panicStatus.active_automations.length > 0 && (
         <div className="mb-6">
-          <h3 className="text-xl font-semibold mb-2">Active Automations ({panicStatus.total_active})</h3>
+          <h3 className="text-xl font-semibold mb-2 text-gray-900">Active Automations ({panicStatus.total_active})</h3>
           <div className="space-y-2">
             {panicStatus.active_automations.map((auto) => (
-              <div key={auto.automation_id} className="bg-gray-800 p-3 rounded">
-                <div className="font-semibold">{auto.action_type}</div>
-                <div className="text-sm text-gray-300">Started: {new Date(auto.started_at).toLocaleTimeString()}</div>
+              <div key={auto.automation_id} className="bg-gray-50 border border-gray-200 p-3 rounded">
+                <div className="font-semibold text-gray-900">{auto.action_type}</div>
+                <div className="text-sm text-gray-600">Started: {new Date(auto.started_at).toLocaleTimeString()}</div>
               </div>
             ))}
           </div>
@@ -150,30 +152,30 @@ export function PanicStop() {
       {/* Automation Console */}
       {console && (
         <div>
-          <h3 className="text-xl font-semibold mb-2">Automation History</h3>
+          <h3 className="text-xl font-semibold mb-2 text-gray-900">Automation History</h3>
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {console.history.length > 0 ? (
               console.history.map((item, idx) => (
                 <div
                   key={idx}
-                  className={`p-3 rounded ${
-                    item.success ? "bg-gray-800" : "bg-red-900"
+                  className={`p-3 rounded border ${
+                    item.success ? "bg-gray-50 border-gray-200" : "bg-red-50 border-red-200"
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className="font-semibold">{item.action_description}</span>
-                    <span className="text-sm text-gray-300">
+                    <span className="font-semibold text-gray-900">{item.action_description}</span>
+                    <span className="text-sm text-gray-600">
                       {item.duration_seconds.toFixed(1)}s
                     </span>
                   </div>
-                  <div className="text-sm text-gray-300">
+                  <div className="text-sm text-gray-700">
                     {item.started_at && new Date(item.started_at).toLocaleString()}
-                    {item.error && <div className="text-red-300 mt-1">Error: {item.error}</div>}
+                    {item.error && <div className="text-red-600 mt-1">Error: {item.error}</div>}
                   </div>
                 </div>
               ))
             ) : (
-              <div className="bg-gray-800 p-4 rounded text-gray-400">No automation history</div>
+              <div className="bg-gray-50 border border-gray-200 p-4 rounded text-gray-500">No automation history</div>
             )}
           </div>
         </div>

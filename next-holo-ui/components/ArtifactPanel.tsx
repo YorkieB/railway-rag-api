@@ -9,11 +9,11 @@ type Props = {
 
 export function ArtifactPanel({ artifacts, onClear, onRemove }: Props) {
   return (
-    <div className="glass neon-border p-4 md:p-6 h-full flex flex-col gap-3">
+    <div className="card p-4 md:p-6 h-full flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Artifacts</h2>
+        <h2 className="text-xl font-semibold text-gray-900">Artifacts</h2>
         <button
-          className="text-xs text-slate-200/70 hover:text-white underline underline-offset-4 tap-target disabled:opacity-50 disabled:no-underline px-3 py-2 rounded-lg"
+          className="text-xs text-gray-600 hover:text-gray-900 underline underline-offset-4 tap-target disabled:opacity-50 disabled:no-underline disabled:cursor-not-allowed px-3 py-2 rounded-lg transition-colors"
           onClick={onClear}
           disabled={!artifacts.length}
           aria-label="Clear all artifacts"
@@ -29,7 +29,7 @@ export function ArtifactPanel({ artifacts, onClear, onRemove }: Props) {
         aria-relevant="additions text"
       >
         {artifacts.length === 0 && (
-          <div className="text-slate-200/70 text-sm">Generated patterns and code will appear here.</div>
+          <div className="text-gray-500 text-sm">Generated patterns and code will appear here.</div>
         )}
 
         {artifacts.map(item => (
@@ -37,12 +37,12 @@ export function ArtifactPanel({ artifacts, onClear, onRemove }: Props) {
             key={item.id}
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2"
+            className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2"
           >
             <div className="flex items-center justify-between">
-              <div className="font-semibold">{item.title}</div>
+              <div className="font-semibold text-gray-900">{item.title}</div>
               <button
-                className="text-xs text-slate-300/80 hover:text-white tap-target"
+                className="text-xs text-gray-600 hover:text-gray-900 tap-target transition-colors"
                 onClick={() => onRemove?.(item.id)}
                 aria-label={`Close artifact ${item.title}`}
               >

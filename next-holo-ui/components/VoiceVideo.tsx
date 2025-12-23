@@ -192,16 +192,16 @@ export function VoiceVideo({ apiBase, elevenLabsKey, elevenLabsVoice, ttsEnabled
   const statusChip = useMemo(() => {
     if (status === "connected") return { label: "Connected", color: "bg-emerald-400 animate-pulse" };
     if (status === "connecting") return { label: "Connecting...", color: "bg-amber-300" };
-    if (status === "error") return { label: "Error", color: "bg-red-400" };
-    return { label: "Idle", color: "bg-slate-300" };
+    if (status === "error") return { label: "Error", color: "bg-red-500" };
+    return { label: "Idle", color: "bg-gray-400" };
   }, [status]);
 
   return (
-    <div className="glass neon-border p-4 md:p-6 space-y-4">
+    <div className="card p-4 md:p-6 space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h2 className="text-xl font-semibold">Gemini Live (Voice + Vision)</h2>
+        <h2 className="text-xl font-semibold text-gray-900">Gemini Live (Voice + Vision)</h2>
         <span className="chip">
-          <span className={`inline-block h-2.5 w-2.5 rounded-full ${statusChip.color}`} aria-hidden="true" />
+          <span className={`inline-block h-2 w-2 rounded-full ${statusChip.color} mr-2`} aria-hidden="true" />
           {statusChip.label}
         </span>
       </div>
@@ -209,7 +209,7 @@ export function VoiceVideo({ apiBase, elevenLabsKey, elevenLabsVoice, ttsEnabled
       <div className="flex flex-wrap gap-3">
         <button
           onClick={sessionReady ? stopSession : startSession}
-          className="glow-button px-4 py-3 text-sm tap-target disabled:opacity-60 disabled:cursor-not-allowed"
+          className="btn-primary text-sm tap-target disabled:opacity-60 disabled:cursor-not-allowed"
           disabled={connecting}
           aria-label={sessionReady ? "Stop session" : "Start session"}
           type="button"
@@ -219,27 +219,27 @@ export function VoiceVideo({ apiBase, elevenLabsKey, elevenLabsVoice, ttsEnabled
         {sessionReady && (
           <button
             onClick={stopSession}
-            className="glow-button px-4 py-3 text-sm tap-target bg-red-500/70 hover:bg-red-500/90"
+            className="btn-secondary text-sm tap-target bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
             aria-label="End call"
             type="button"
           >
             End Call
           </button>
         )}
-        <label className="flex items-center gap-2 text-sm tap-target select-none">
+        <label className="flex items-center gap-2 text-sm tap-target select-none text-gray-700">
           <input
             type="checkbox"
-            className="h-5 w-5 accent-purple-400 rounded"
+            className="h-4 w-4 accent-primary rounded"
             checked={micEnabled}
             onChange={e => setMicEnabled(e.target.checked)}
             aria-label="Toggle microphone"
           />
           Mic
         </label>
-        <label className="flex items-center gap-2 text-sm tap-target select-none">
+        <label className="flex items-center gap-2 text-sm tap-target select-none text-gray-700">
           <input
             type="checkbox"
-            className="h-5 w-5 accent-cyan-300 rounded"
+            className="h-4 w-4 accent-primary rounded"
             checked={camEnabled}
             onChange={e => setCamEnabled(e.target.checked)}
             aria-label="Toggle camera"
@@ -247,7 +247,7 @@ export function VoiceVideo({ apiBase, elevenLabsKey, elevenLabsVoice, ttsEnabled
           Camera
         </label>
         {sessionId && (
-          <span className="text-xs text-slate-200/60 truncate max-w-[220px]">Session: {sessionId}</span>
+          <span className="text-xs text-gray-600 truncate max-w-[220px]">Session: {sessionId}</span>
         )}
       </div>
 
@@ -255,7 +255,7 @@ export function VoiceVideo({ apiBase, elevenLabsKey, elevenLabsVoice, ttsEnabled
         <input
           value={liveText}
           onChange={e => setLiveText(e.target.value)}
-          className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm focus:outline-none focus:border-neon-violet placeholder:text-slate-400/80"
+          className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-gray-400"
           placeholder="Send text into the live session"
           aria-label="Send text to live session"
         />
@@ -267,7 +267,7 @@ export function VoiceVideo({ apiBase, elevenLabsKey, elevenLabsVoice, ttsEnabled
             }
           }}
           disabled={!sessionReady}
-          className="glow-button px-4 py-2 text-sm disabled:opacity-60 tap-target"
+          className="btn-primary text-sm disabled:opacity-60 tap-target"
           aria-label="Send text event to live session"
         >
           Send
@@ -275,27 +275,27 @@ export function VoiceVideo({ apiBase, elevenLabsKey, elevenLabsVoice, ttsEnabled
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div className="rounded-xl border border-white/10 bg-black/40 p-2 flex flex-col gap-2">
-          <video ref={videoRef} className="w-full rounded-lg bg-black/40 aspect-video" muted playsInline />
+        <div className="rounded-lg border border-gray-200 bg-gray-100 p-2 flex flex-col gap-2">
+          <video ref={videoRef} className="w-full rounded-lg bg-black aspect-video" muted playsInline />
           <canvas ref={canvasRef} className="hidden" />
-          <div className="text-xs text-slate-300/70">Live preview (muted locally)</div>
+          <div className="text-xs text-gray-600">Live preview (muted locally)</div>
         </div>
         <div
-          className="rounded-xl border border-white/10 bg-white/5 p-3 max-h-64 overflow-y-auto space-y-2"
+          className="rounded-lg border border-gray-200 bg-gray-50 p-3 max-h-64 overflow-y-auto space-y-2"
           role="log"
           aria-live="polite"
           aria-relevant="additions text"
         >
           {events.length === 0 && (
-            <div className="text-sm text-slate-200/70">Responses and vision descriptions will appear here.</div>
+            <div className="text-sm text-gray-500">Responses and vision descriptions will appear here.</div>
           )}
           {events.map((evt, idx) => (
-            <div key={idx} className="text-sm text-slate-100">
-              <span className="text-xs text-neon-violet uppercase mr-2">{evt.type}</span>
+            <div key={idx} className="text-sm text-gray-900">
+              <span className="text-xs text-primary uppercase mr-2 font-medium">{evt.type}</span>
               {renderEvent(evt)}
             </div>
           ))}
-          {lastError && <div className="text-xs text-red-300">Error: {lastError}</div>}
+          {lastError && <div className="text-xs text-red-600">Error: {lastError}</div>}
         </div>
       </div>
     </div>

@@ -4,7 +4,6 @@ import { Hero } from "@/components/Hero";
 import { ChatPanel } from "@/components/ChatPanel";
 import { ArtifactPanel } from "@/components/ArtifactPanel";
 import { VoiceVideo } from "@/components/VoiceVideo";
-import { CompanionVoice } from "@/components/CompanionVoice";
 import { ScreenSharePanel } from "@/components/ScreenSharePanel";
 import { BrowserPanel } from "@/components/BrowserPanel";
 import { ExportPanel } from "@/components/ExportPanel";
@@ -24,6 +23,7 @@ import { SpotifyPanel } from "@/components/SpotifyPanel";
 import { AudioLiveSession } from "@/components/AudioLiveSession";
 import { VideoLiveSession } from "@/components/VideoLiveSession";
 import { Login } from "@/components/Login";
+import { Sidebar, type PanelId } from "@/components/Sidebar";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { apiBaseFromEnv, companionApiBaseFromEnv, queryApi, uploadDocument, speakWithElevenLabs } from "@/lib/api";
 import { Artifact, Message } from "@/types";
@@ -46,6 +46,7 @@ export default function Home() {
   const [uploading, setUploading] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [backendStatus, setBackendStatus] = useState<string>("unknown");
+  const [activePanel, setActivePanel] = useState<PanelId>("home");
 
   const chatRef = useRef<HTMLDivElement | null>(null);
 
@@ -144,20 +145,10 @@ export default function Home() {
     check();
   }, [apiBase]);
 
-  return (
-    <>
-      <Head>
-        <title>Jarvis Holo UI</title>
-        <meta name="description" content="Touch-friendly holographic UI for Jarvis RAG + Gemini Live with chat, artifacts, and real-time voice/video." />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-      </Head>
-      <main className="min-h-screen relative">
-        <div className="grid-overlay" />
-        <div className="absolute inset-0 bg-gradient-to-b from-white/5 via-transparent to-black/60 pointer-events-none" />
-        <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 py-10 space-y-8">
-          <Hero onGenerate={scrollToChat} statusText={statusText} />
-          <StatusBar apiBase={apiBase} backendStatus={backendStatus} />
-
+  const renderActivePanel = () => {
+    switch (activePanel) {
+      case "home":
+        return (
           <div ref={chatRef} className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
             <ChatPanel messages={messages} onSend={handleSend} sending={sending || uploading} onFileSelected={handleUpload} />
             <ArtifactPanel
@@ -166,53 +157,77 @@ export default function Home() {
               onRemove={id => setArtifacts(prev => prev.filter(a => a.id !== id))}
             />
           </div>
-
-          <VoiceVideo apiBase={apiBase} elevenLabsKey={elevenKey} elevenLabsVoice={elevenVoice} ttsEnabled={ttsEnabled} />
-
-          <CompanionVoice apiBase={companionApiBaseFromEnv()} />
-
-          <ScreenSharePanel apiBase={apiBase} />
-
-          <BrowserPanel apiBase={apiBase} />
-
-          <ExportPanel apiBase={apiBase} messages={messages} />
-
-          <DevicePairing apiBase={apiBase} />
-
-          <OSAutomationPanel apiBase={apiBase} />
-
-          <PanicStop />
-
-          <AgentOrchestration />
-
-          <AdvancedMemoryPanel />
-
-          <EvaluationDashboard />
-
-          <Avatar />
-
-          <ImageGenerator />
-
-          <VideoGenerator />
-
-          <ChartGenerator />
-
-          <SpotifyPanel />
-
-          <AudioLiveSession />
-
-          <VideoLiveSession />
-
-          <Login />
-
-          <div className="flex items-center flex-wrap gap-3">
-            <button className="text-sm underline underline-offset-4 text-slate-200/80 hover:text-white" onClick={() => setSettingsOpen(true)}>
-              Settings
+        );
+      case "voice-video":
+        return <VoiceVideo apiBase={apiBase} elevenLabsKey={elevenKey} elevenLabsVoice={elevenVoice} ttsEnabled={ttsEnabled} />;
+      case "screen-share":
+        return <ScreenSharePanel apiBase={apiBase} />;
+      case "browser":
+        return <BrowserPanel apiBase={apiBase} />;
+      case "os-automation":
+        return <OSAutomationPanel apiBase={apiBase} />;
+      case "device-pairing":
+        return <DevicePairing apiBase={apiBase} />;
+      case "panic-stop":
+        return <PanicStop />;
+      case "agent-orchestration":
+        return <AgentOrchestration />;
+      case "memory":
+        return <AdvancedMemoryPanel />;
+      case "evaluation":
+        return <EvaluationDashboard />;
+      case "avatar":
+        return <Avatar />;
+      case "image-gen":
+        return <ImageGenerator />;
+      case "video-gen":
+        return <VideoGenerator />;
+      case "chart-gen":
+        return <ChartGenerator />;
+      case "spotify":
+        return <SpotifyPanel />;
+      case "audio-live":
+        return <AudioLiveSession />;
+      case "video-live":
+        return <VideoLiveSession />;
+      case "export":
+        return <ExportPanel apiBase={apiBase} messages={messages} />;
+      case "login":
+        return <Login />;
+      case "settings":
+        return (
+          <div className="card p-6">
+            <h2 className="text-2xl font-semibold mb-4">Settings</h2>
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="btn-primary"
+            >
+              Open Settings
             </button>
-            <div className="text-xs text-slate-200/60">Touch-optimized; drag/scroll works on large panels.</div>
           </div>
-        </div>
-      </main>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <>
+      <Head>
+        <title>Jarvis</title>
+        <meta name="description" content="Jarvis AI Assistant - RAG-powered chat interface" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </Head>
+      <div className="flex h-screen overflow-hidden bg-gray-50">
+        <Sidebar activePanel={activePanel} onPanelChange={setActivePanel} />
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 space-y-6">
+            <Hero onGenerate={scrollToChat} statusText={statusText} />
+            <StatusBar apiBase={apiBase} backendStatus={backendStatus} />
+            {renderActivePanel()}
+          </div>
+        </main>
+      </div>
 
       <SettingsDrawer
         open={settingsOpen}

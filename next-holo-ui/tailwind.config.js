@@ -8,19 +8,20 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        neon: {
-          blue: "#4fc3f7",
-          violet: "#8b5cf6",
-          cyan: "#5ef1ff"
+        primary: {
+          DEFAULT: "#3b82f6",
+          hover: "#2563eb",
+          light: "#dbeafe"
         },
-        glass: "rgba(255,255,255,0.08)"
+        border: {
+          DEFAULT: "#e5e5e5",
+          light: "#f5f5f5"
+        }
       },
       boxShadow: {
-        glow: "0 0 25px rgba(79,195,247,0.45)",
-        "glow-strong": "0 0 45px rgba(139,92,246,0.55)"
-      },
-      backdropBlur: {
-        xs: "2px"
+        sm: "0 1px 2px rgba(0, 0, 0, 0.05)",
+        DEFAULT: "0 1px 3px rgba(0, 0, 0, 0.1)",
+        md: "0 4px 6px rgba(0, 0, 0, 0.1)"
       }
     }
   },

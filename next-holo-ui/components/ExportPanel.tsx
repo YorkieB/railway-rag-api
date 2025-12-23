@@ -96,17 +96,17 @@ export function ExportPanel({ apiBase, messages, projectName }: Props) {
   };
 
   return (
-    <div className="glass neon-border p-4 md:p-6 space-y-4">
-      <h2 className="text-xl font-semibold">Export</h2>
+    <div className="card p-4 md:p-6 space-y-4">
+      <h2 className="text-xl font-semibold text-gray-900">Export</h2>
 
       <div className="space-y-3">
         <div>
-          <label className="text-sm text-slate-200/70 mb-2 block">Export Type</label>
+          <label className="text-sm text-gray-600 mb-2 block">Export Type</label>
           <div className="flex gap-2">
             <button
               onClick={() => setExportType("conversation")}
-              className={`px-4 py-2 text-sm rounded ${
-                exportType === "conversation" ? "bg-purple-500/30" : "bg-white/5"
+              className={`px-4 py-2 text-sm rounded transition-colors ${
+                exportType === "conversation" ? "bg-primary-light text-primary border border-primary/20" : "bg-gray-100 text-gray-700 border border-gray-200"
               }`}
               type="button"
             >
@@ -114,8 +114,8 @@ export function ExportPanel({ apiBase, messages, projectName }: Props) {
             </button>
             <button
               onClick={() => setExportType("query")}
-              className={`px-4 py-2 text-sm rounded ${
-                exportType === "query" ? "bg-purple-500/30" : "bg-white/5"
+              className={`px-4 py-2 text-sm rounded transition-colors ${
+                exportType === "query" ? "bg-primary-light text-primary border border-primary/20" : "bg-gray-100 text-gray-700 border border-gray-200"
               }`}
               type="button"
             >
@@ -126,7 +126,7 @@ export function ExportPanel({ apiBase, messages, projectName }: Props) {
 
         <button
           onClick={exportType === "conversation" ? exportConversation : exportQueryResults}
-          className="w-full glow-button px-4 py-3 text-sm tap-target disabled:opacity-60 disabled:cursor-not-allowed"
+          className="w-full btn-primary text-sm tap-target disabled:opacity-60 disabled:cursor-not-allowed"
           disabled={exporting || messages.length === 0}
           type="button"
         >
@@ -138,7 +138,7 @@ export function ExportPanel({ apiBase, messages, projectName }: Props) {
         </button>
 
         {messages.length === 0 && (
-          <div className="text-xs text-slate-400">No messages to export</div>
+          <div className="text-xs text-gray-500">No messages to export</div>
         )}
       </div>
     </div>

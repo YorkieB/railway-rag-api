@@ -3,13 +3,14 @@
 @tailwind utilities;
 
 :root {
-  --bg: radial-gradient(circle at 20% 20%, rgba(94,241,255,0.08), transparent 25%),
-        radial-gradient(circle at 80% 0%, rgba(139,92,246,0.12), transparent 30%),
-        #05060a;
-  --panel: rgba(255, 255, 255, 0.06);
-  --panel-border: rgba(255, 255, 255, 0.2);
-  --text-primary: #e9f2ff;
-  --text-secondary: #98b0cc;
+  --bg: #fafafa;
+  --bg-secondary: #ffffff;
+  --panel: #ffffff;
+  --panel-border: #e5e5e5;
+  --text-primary: #1a1a1a;
+  --text-secondary: #4a4a4a;
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
 }
 
 html, body {
@@ -33,16 +34,15 @@ button, input, textarea, select {
 }
 
 ::selection {
-  background: rgba(94, 241, 255, 0.25);
-  color: #0b0d12;
+  background: rgba(59, 130, 246, 0.2);
+  color: var(--text-primary);
 }
 
-.glass {
+.card {
   background: var(--panel);
   border: 1px solid var(--panel-border);
-  border-radius: 16px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 10px 40px rgba(0,0,0,0.35);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .tap-target {
@@ -50,112 +50,93 @@ button, input, textarea, select {
   min-width: 44px;
 }
 
-.glow-button {
-  background: linear-gradient(120deg, #5ef1ff, #8b5cf6);
-  color: #0b0d12;
-  font-weight: 700;
+.btn-primary {
+  background: var(--accent);
+  color: #ffffff;
+  font-weight: 600;
   border: none;
-  border-radius: 14px;
-  padding: 14px 22px;
-  box-shadow: 0 0 24px rgba(139,92,246,0.6);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+  border-radius: 8px;
+  padding: 10px 20px;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+  cursor: pointer;
 }
 
-.glow-button:hover {
-  transform: translateY(-1px) scale(1.01);
-  box-shadow: 0 0 32px rgba(94,241,255,0.7);
-  filter: brightness(1.05);
+.btn-primary:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
 }
 
-.glow-button:active {
+.btn-primary:active {
   transform: translateY(0);
 }
 
-.glow-button:focus-visible,
+.btn-secondary {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-weight: 500;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 10px 20px;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  background: #f5f5f5;
+  border-color: #d4d4d4;
+}
+
 button:focus-visible,
 input:focus-visible,
-select:focus-visible {
+select:focus-visible,
+textarea:focus-visible {
   outline: none;
-  box-shadow:
-    0 0 0 2px rgba(94,241,255,0.9),
-    0 0 0 4px rgba(139,92,246,0.45);
-}
-
-.neon-border {
-  position: relative;
-}
-
-.neon-border::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: 16px;
-  background: linear-gradient(120deg, rgba(94,241,255,0.6), rgba(139,92,246,0.6));
-  filter: blur(12px);
-  opacity: 0.6;
-  z-index: -1;
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 .code-block {
-  background: rgba(0,0,0,0.45);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
+  background: #f5f5f5;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
   padding: 12px 14px;
   font-family: 'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
-  color: #d6f0ff;
+  color: var(--text-primary);
   white-space: pre-wrap;
   word-break: break-word;
-}
-
-.grid-overlay {
-  position: fixed;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
-  background-size: 120px 120px, 120px 120px;
-  pointer-events: none;
-  opacity: 0.25;
-  z-index: 0;
 }
 
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
+  gap: 6px;
+  padding: 4px 12px;
   border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.18);
-  background: rgba(255,255,255,0.06);
-  box-shadow: 0 0 20px rgba(94,241,255,0.15);
+  border: 1px solid var(--panel-border);
+  background: var(--bg-secondary);
   font-size: 12px;
-  color: var(--text-primary);
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 
-.bg-blur {
-  backdrop-filter: blur(12px);
-}
-
-/* Subtle scrollbar styling for chat/artifact panes */
+/* Subtle scrollbar styling */
 *::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 *::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(94,241,255,0.4), rgba(139,92,246,0.6));
+  background: #d4d4d4;
   border-radius: 999px;
 }
+*::-webkit-scrollbar-thumb:hover {
+  background: #a3a3a3;
+}
 *::-webkit-scrollbar-track {
-  background: rgba(255,255,255,0.05);
+  background: #f5f5f5;
 }
 
 @media (max-width: 768px) {
-  .grid-overlay {
-    background-size: 80px 80px, 80px 80px;
-    opacity: 0.18;
-  }
-  .glass {
-    border-radius: 12px;
+  .card {
+    border-radius: 8px;
   }
 }
 

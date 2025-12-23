@@ -28,12 +28,12 @@ export function ChatPanel({ messages, onSend, sending, onFileSelected }: ChatPan
   };
 
   return (
-    <div className="glass neon-border p-4 md:p-6 h-full flex flex-col gap-3">
+    <div className="card p-4 md:p-6 h-full flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Chat</h2>
+        <h2 className="text-xl font-semibold text-gray-900">Chat</h2>
         <div className="flex gap-2">
           <button
-            className="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-200/80 hover:border-neon-violet hover:text-white transition tap-target"
+            className="btn-secondary text-sm tap-target"
             onClick={() => fileInputRef.current?.click()}
             aria-label="Upload document to knowledge base"
           >
@@ -56,7 +56,7 @@ export function ChatPanel({ messages, onSend, sending, onFileSelected }: ChatPan
         aria-relevant="additions text"
       >
         {messages.length === 0 && (
-          <div className="text-slate-200/70 text-sm">Ask about your documents or start a Gemini Live session.</div>
+          <div className="text-gray-500 text-sm">Ask about your documents or start a conversation.</div>
         )}
         {messages.map(msg => (
           <motion.div
@@ -64,30 +64,30 @@ export function ChatPanel({ messages, onSend, sending, onFileSelected }: ChatPan
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
             className={clsx(
-              "rounded-xl px-4 py-3 border",
+              "rounded-lg px-4 py-3 border",
               msg.role === "user"
-                ? "bg-white/5 border-white/10"
-                : "bg-gradient-to-br from-purple-500/15 to-cyan-400/10 border-white/15"
+                ? "bg-gray-50 border-gray-200"
+                : "bg-white border-gray-200"
             )}
           >
-            <div className="text-xs uppercase tracking-[0.2em] text-slate-300/70 mb-1">
+            <div className="text-xs uppercase tracking-wide text-gray-500 mb-1.5 font-medium">
               {msg.role === "user" ? "You" : "Jarvis"}
             </div>
-            <div className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
+            <div className="whitespace-pre-wrap leading-relaxed text-gray-900">{msg.content}</div>
             
             {/* Uncertainty Message */}
             {msg.uncertain && (
-              <div className="mt-3 p-3 bg-yellow-900/20 border border-yellow-700/50 rounded-lg">
-                <div className="text-xs font-semibold text-yellow-300 mb-2">
+              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="text-xs font-semibold text-yellow-800 mb-2">
                   ⚠️ Uncertain Response
                 </div>
                 {msg.reason && (
-                  <div className="text-xs text-yellow-200/80 mb-2">
+                  <div className="text-xs text-yellow-700 mb-2">
                     Reason: {msg.reason === "empty_retrieval" ? "No relevant information found" : "Low confidence in retrieved information"}
                   </div>
                 )}
                 {msg.suggestions && msg.suggestions.length > 0 && (
-                  <div className="text-xs text-yellow-200/80">
+                  <div className="text-xs text-yellow-700">
                     Suggestions:
                     <ul className="list-disc ml-4 mt-1 space-y-1">
                       {msg.suggestions.map((suggestion, idx) => (
@@ -101,7 +101,7 @@ export function ChatPanel({ messages, onSend, sending, onFileSelected }: ChatPan
             
             {/* Sources */}
             {msg.sources && msg.sources.length > 0 && (
-              <div className="mt-2 text-xs text-slate-200/70">
+              <div className="mt-2 text-xs text-gray-600">
                 Sources:
                 <ul className="list-disc ml-4 space-y-0.5 mt-1">
                   {msg.sources.map((s, idx) => (
@@ -115,12 +115,12 @@ export function ChatPanel({ messages, onSend, sending, onFileSelected }: ChatPan
             
             {/* Memory Citations */}
             {msg.memories_used && msg.memories_used.length > 0 && (
-              <div className="mt-2 text-xs text-slate-200/70">
+              <div className="mt-2 text-xs text-gray-600">
                 Memories Used:
                 <ul className="list-disc ml-4 space-y-0.5 mt-1">
                   {msg.memories_used.map((mem, idx) => (
                     <li key={idx}>
-                      <span className="text-purple-300">{mem.type}</span>: {mem.content.substring(0, 100)}{mem.content.length > 100 ? "..." : ""}
+                      <span className="text-primary font-medium">{mem.type}</span>: {mem.content.substring(0, 100)}{mem.content.length > 100 ? "..." : ""}
                     </li>
                   ))}
                 </ul>
@@ -132,7 +132,7 @@ export function ChatPanel({ messages, onSend, sending, onFileSelected }: ChatPan
 
       <form onSubmit={handleSubmit} className="flex gap-2 items-center">
         <input
-          className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm focus:outline-none focus:border-neon-violet placeholder:text-slate-400/80"
+          className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-gray-400"
           placeholder="Ask Jarvis..."
           value={text}
           onChange={e => setText(e.target.value)}
@@ -142,7 +142,7 @@ export function ChatPanel({ messages, onSend, sending, onFileSelected }: ChatPan
           type="submit"
           onClick={handleSubmit}
           disabled={sending}
-          className="glow-button px-4 py-3 text-sm disabled:opacity-60 disabled:cursor-not-allowed tap-target"
+          className="btn-primary text-sm disabled:opacity-60 disabled:cursor-not-allowed tap-target"
           aria-label="Send message"
         >
           {sending ? "Sending..." : "Send"}

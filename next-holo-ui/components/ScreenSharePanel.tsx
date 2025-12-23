@@ -37,11 +37,11 @@ export function ScreenSharePanel({ apiBase }: Props) {
   const frameIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const statusChip = {
-    idle: { label: "Idle", color: "bg-slate-300" },
-    connecting: { label: "Connecting...", color: "bg-amber-300" },
-    live: { label: "Live", color: "bg-emerald-400 animate-pulse" },
-    paused: { label: "Paused", color: "bg-yellow-400" },
-    error: { label: "Error", color: "bg-red-400" }
+    idle: { label: "Idle", color: "bg-gray-400" },
+    connecting: { label: "Connecting...", color: "bg-yellow-500" },
+    live: { label: "Live", color: "bg-green-500 animate-pulse" },
+    paused: { label: "Paused", color: "bg-yellow-500" },
+    error: { label: "Error", color: "bg-red-500" }
   }[status];
 
   const startScreenShare = async () => {
@@ -252,11 +252,11 @@ export function ScreenSharePanel({ apiBase }: Props) {
   }, []);
 
   return (
-    <div className="glass neon-border p-4 md:p-6 space-y-4">
+    <div className="card p-4 md:p-6 space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h2 className="text-xl font-semibold">Screen Share Assist (LS3)</h2>
+        <h2 className="text-xl font-semibold text-gray-900">Screen Share Assist (LS3)</h2>
         <span className="chip">
-          <span className={`inline-block h-2.5 w-2.5 rounded-full ${statusChip.color}`} aria-hidden="true" />
+          <span className={`inline-block h-2 w-2 rounded-full ${statusChip.color} mr-2`} aria-hidden="true" />
           {statusChip.label}
         </span>
       </div>
@@ -265,7 +265,7 @@ export function ScreenSharePanel({ apiBase }: Props) {
         {status === "idle" ? (
           <button
             onClick={startScreenShare}
-            className="glow-button px-4 py-3 text-sm tap-target"
+            className="btn-primary text-sm tap-target"
             type="button"
           >
             Start Screen Share
@@ -274,7 +274,7 @@ export function ScreenSharePanel({ apiBase }: Props) {
           <>
             <button
               onClick={stopScreenShare}
-              className="glow-button px-4 py-3 text-sm tap-target bg-red-500/70 hover:bg-red-500/90"
+              className="btn-secondary text-sm tap-target bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
               type="button"
             >
               Stop
@@ -282,7 +282,7 @@ export function ScreenSharePanel({ apiBase }: Props) {
             {status === "live" ? (
               <button
                 onClick={pauseSession}
-                className="glow-button px-4 py-3 text-sm tap-target"
+                className="btn-secondary text-sm tap-target"
                 type="button"
               >
                 Pause
@@ -290,7 +290,7 @@ export function ScreenSharePanel({ apiBase }: Props) {
             ) : (
               <button
                 onClick={resumeSession}
-                className="glow-button px-4 py-3 text-sm tap-target"
+                className="btn-primary text-sm tap-target"
                 type="button"
               >
                 Resume
@@ -299,11 +299,11 @@ export function ScreenSharePanel({ apiBase }: Props) {
           </>
         )}
         <div className="flex items-center gap-2">
-          <label className="text-xs text-slate-200/70">Frame Rate:</label>
+          <label className="text-xs text-gray-600">Frame Rate:</label>
           <select
             value={frameRate}
             onChange={(e) => setFrameRate(parseFloat(e.target.value))}
-            className="bg-black/40 border border-white/20 rounded px-2 py-1 text-xs text-white"
+            className="bg-white border border-gray-300 rounded px-2 py-1 text-xs text-gray-900"
             disabled={status !== "idle"}
           >
             <option value={0.5}>0.5 fps</option>
@@ -316,8 +316,8 @@ export function ScreenSharePanel({ apiBase }: Props) {
       {status !== "idle" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <div className="text-xs text-slate-200/70">Screen Preview</div>
-            <div className="relative rounded-lg overflow-hidden border border-white/10 bg-black/40">
+            <div className="text-xs text-gray-600">Screen Preview</div>
+            <div className="relative rounded-lg overflow-hidden border border-gray-200 bg-gray-100">
               <video
                 ref={videoRef}
                 autoPlay
@@ -329,25 +329,25 @@ export function ScreenSharePanel({ apiBase }: Props) {
           </div>
           
           <div className="space-y-2">
-            <div className="text-xs text-slate-200/70">Analysis Mode</div>
+            <div className="text-xs text-gray-600">Analysis Mode</div>
             <div className="flex gap-2">
               <button
                 onClick={() => setMode("describe")}
-                className={`px-3 py-2 text-xs rounded ${mode === "describe" ? "bg-purple-500/30" : "bg-white/5"}`}
+                className={`px-3 py-2 text-xs rounded transition-colors ${mode === "describe" ? "bg-primary-light text-primary border border-primary/20" : "bg-gray-100 text-gray-700 border border-gray-200"}`}
                 type="button"
               >
                 Describe
               </button>
               <button
                 onClick={() => setMode("guide")}
-                className={`px-3 py-2 text-xs rounded ${mode === "guide" ? "bg-purple-500/30" : "bg-white/5"}`}
+                className={`px-3 py-2 text-xs rounded transition-colors ${mode === "guide" ? "bg-primary-light text-primary border border-primary/20" : "bg-gray-100 text-gray-700 border border-gray-200"}`}
                 type="button"
               >
                 Guide
               </button>
               <button
                 onClick={() => setMode("pin")}
-                className={`px-3 py-2 text-xs rounded ${mode === "pin" ? "bg-purple-500/30" : "bg-white/5"}`}
+                className={`px-3 py-2 text-xs rounded transition-colors ${mode === "pin" ? "bg-primary-light text-primary border border-primary/20" : "bg-gray-100 text-gray-700 border border-gray-200"}`}
                 type="button"
               >
                 Pin
@@ -360,12 +360,12 @@ export function ScreenSharePanel({ apiBase }: Props) {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Ask about what you see..."
-                className="flex-1 bg-black/40 border border-white/20 rounded px-3 py-2 text-sm text-white placeholder-slate-400"
+                className="flex-1 bg-white border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                 onKeyPress={(e) => e.key === "Enter" && sendQuery()}
               />
               <button
                 onClick={sendQuery}
-                className="glow-button px-4 py-2 text-sm"
+                className="btn-primary text-sm"
                 type="button"
                 disabled={!query.trim()}
               >
@@ -376,7 +376,7 @@ export function ScreenSharePanel({ apiBase }: Props) {
             {currentAnalysis && (
               <button
                 onClick={pinCurrentFrame}
-                className="w-full glow-button px-4 py-2 text-sm"
+                className="w-full btn-secondary text-sm"
                 type="button"
               >
                 Pin Current Frame
@@ -387,25 +387,25 @@ export function ScreenSharePanel({ apiBase }: Props) {
       )}
 
       {currentAnalysis && (
-        <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 p-3 space-y-2">
+        <div className="rounded-lg border border-primary/30 bg-primary-light p-3 space-y-2">
           <div className="flex items-center justify-between">
-            <div className="text-xs font-semibold text-purple-300">Current Analysis</div>
+            <div className="text-xs font-semibold text-primary">Current Analysis</div>
             {currentAnalysis.warning && (
-              <span className="text-xs text-amber-400">⚠ Budget Warning</span>
+              <span className="text-xs text-yellow-700">⚠ Budget Warning</span>
             )}
           </div>
           {currentAnalysis.error ? (
-            <div className="text-sm text-red-400">{currentAnalysis.error}</div>
+            <div className="text-sm text-red-600">{currentAnalysis.error}</div>
           ) : (
-            <div className="text-sm text-slate-200 whitespace-pre-wrap">{currentAnalysis.analysis}</div>
+            <div className="text-sm text-gray-900 whitespace-pre-wrap">{currentAnalysis.analysis}</div>
           )}
           {currentAnalysis.secrets_blurred && currentAnalysis.secrets_blurred > 0 && (
-            <div className="text-xs text-amber-400">
+            <div className="text-xs text-yellow-700">
               ⚠ {currentAnalysis.secrets_blurred} secret region(s) blurred
             </div>
           )}
           {currentAnalysis.vision_tokens_used !== undefined && (
-            <div className="text-xs text-slate-400">
+            <div className="text-xs text-gray-600">
               Tokens: {currentAnalysis.vision_tokens_used} / {currentAnalysis.vision_tokens_limit}
             </div>
           )}
@@ -414,13 +414,13 @@ export function ScreenSharePanel({ apiBase }: Props) {
 
       {pinnedFrames.length > 0 && (
         <div className="space-y-2">
-          <div className="text-xs font-semibold text-slate-200/70">Pinned Frames</div>
+          <div className="text-xs font-semibold text-gray-700">Pinned Frames</div>
           {pinnedFrames.map((frame) => (
-            <div key={frame.id} className="rounded-lg border border-white/10 bg-white/5 p-2">
-              <div className="text-xs text-slate-400 mb-1">
+            <div key={frame.id} className="rounded-lg border border-gray-200 bg-gray-50 p-2">
+              <div className="text-xs text-gray-500 mb-1">
                 {new Date(frame.timestamp).toLocaleTimeString()}
               </div>
-              <div className="text-sm text-slate-200 whitespace-pre-wrap">
+              <div className="text-sm text-gray-900 whitespace-pre-wrap">
                 {frame.result.analysis}
               </div>
             </div>

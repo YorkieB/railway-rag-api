@@ -35,7 +35,7 @@ export function Avatar({ audioElement, currentTime = 0, isListening = false, isT
 
     if (newState !== avatarState) {
       setAvatarStateLocal(newState);
-      setAvatarState(newState as "idle" | "listening" | "thinking" | "speaking").catch(console.error);
+      setAvatarState(API_BASE, newState as "idle" | "listening" | "thinking" | "speaking").catch(console.error);
     }
   }, [isListening, isThinking, isSpeaking, avatarState]);
 
@@ -43,7 +43,7 @@ export function Avatar({ audioElement, currentTime = 0, isListening = false, isT
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const data = await getWaveformData(50);
+        const data = await getWaveformData(API_BASE, 50);
         setWaveformData(data);
       } catch (err) {
         console.error("Failed to fetch waveform data:", err);
@@ -56,7 +56,7 @@ export function Avatar({ audioElement, currentTime = 0, isListening = false, isT
   // Update mouth animation based on current time
   useEffect(() => {
     if (isSpeaking && currentTime > 0) {
-      getMouthAnimation(currentTime)
+      getMouthAnimation(API_BASE, currentTime)
         .then((data) => {
           setMouthAnimation({ mouth_shape: data.mouth_shape, intensity: data.intensity });
         })

@@ -19,11 +19,8 @@ export function AgentOrchestration() {
 
   const loadAgentsStatus = async () => {
     try {
-      const response = await fetch(`${API_BASE}/agents/status`);
-      if (response.ok) {
-        const status = await response.json();
-        setAgentsStatus(status);
-      }
+      const status = await getAgentsStatus(API_BASE);
+      setAgentsStatus(status);
     } catch (err) {
       console.error("Failed to load agents status:", err);
     }
@@ -40,16 +37,7 @@ export function AgentOrchestration() {
     setResult(null);
 
     try {
-      const response = await fetch(`${API_BASE}/agents/execute`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          task_description: taskDescription,
-          user_id: "default",
-        }),
-      });
-      if (!response.ok) throw new Error(`Failed to execute task: ${response.statusText}`);
-      const data = await response.json();
+      const data = await executeAgentTask(API_BASE, taskDescription, "default");
       setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to execute task");

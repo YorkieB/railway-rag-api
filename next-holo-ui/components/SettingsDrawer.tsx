@@ -44,20 +44,20 @@ export function SettingsDrawer({
     <AnimatePresence>
       {open && mounted && (
         <div className="fixed inset-0 z-40">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-xs" onClick={onClose} aria-hidden="true" />
+          <div className="absolute inset-0 bg-black/30" onClick={onClose} aria-hidden="true" />
           <motion.div
             initial={{ x: 360, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: 360, opacity: 0 }}
             transition={{ type: "spring", stiffness: 260, damping: 28 }}
-            className="absolute right-0 top-0 h-full w-full max-w-md glass neon-border p-6 overflow-y-auto"
+            className="absolute right-0 top-0 h-full w-full max-w-md bg-white border-l border-gray-200 p-6 overflow-y-auto shadow-lg"
             role="dialog"
             aria-modal="true"
             aria-label="Settings panel"
           >
             <div className="flex items-center justify-between mb-4">
-              <div className="text-lg font-semibold">Settings</div>
-              <button type="button" onClick={onClose} className="text-slate-200/70 hover:text-white tap-target">
+              <div className="text-lg font-semibold text-gray-900">Settings</div>
+              <button type="button" onClick={onClose} className="text-gray-600 hover:text-gray-900 tap-target transition-colors">
                 Close
               </button>
             </div>
@@ -72,7 +72,7 @@ export function SettingsDrawer({
                 checked={ttsEnabled}
                 onChange={onTtsEnabledChange}
               />
-              <p className="text-xs text-slate-200/70">
+              <p className="text-xs text-gray-600">
                 Keys are stored locally in your browser (localStorage). Gemini Live WS uses the backend environment key; client key is optional for client-side calls.
               </p>
             </div>
@@ -93,9 +93,9 @@ type FieldProps = {
 function Field({ label, value, onChange, placeholder }: FieldProps) {
   return (
     <div className="space-y-1">
-      <div className="text-sm text-slate-200/80">{label}</div>
+      <div className="text-sm text-gray-700 font-medium">{label}</div>
       <input
-        className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm focus:outline-none focus:border-neon-violet placeholder:text-slate-400/80"
+        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-gray-400 text-gray-900"
         value={value}
         placeholder={placeholder}
         onChange={e => onChange(e.target.value)}
@@ -112,9 +112,9 @@ type ToggleProps = {
 
 function ToggleRow({ label, checked, onChange }: ToggleProps) {
   return (
-    <label className="flex items-center justify-between text-sm text-slate-200/80 border border-white/10 rounded-lg px-3 py-2 bg-white/5 tap-target cursor-pointer">
+    <label className="flex items-center justify-between text-sm text-gray-700 border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 tap-target cursor-pointer hover:bg-gray-100 transition-colors">
       <span>{label}</span>
-      <input type="checkbox" className="h-5 w-5 accent-neon-violet" checked={checked} onChange={e => onChange(e.target.checked)} />
+      <input type="checkbox" className="h-5 w-5 accent-primary" checked={checked} onChange={e => onChange(e.target.checked)} />
     </label>
   );
 }

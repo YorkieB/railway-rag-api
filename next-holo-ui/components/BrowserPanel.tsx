@@ -41,10 +41,10 @@ export function BrowserPanel({ apiBase }: Props) {
   const typeTextRef = useRef<HTMLInputElement>(null);
 
   const statusChip = {
-    idle: { label: "Idle", color: "bg-slate-300" },
-    connecting: { label: "Connecting...", color: "bg-amber-300" },
-    active: { label: "Active", color: "bg-emerald-400 animate-pulse" },
-    error: { label: "Error", color: "bg-red-400" }
+    idle: { label: "Idle", color: "bg-gray-400" },
+    connecting: { label: "Connecting...", color: "bg-yellow-500" },
+    active: { label: "Active", color: "bg-green-500 animate-pulse" },
+    error: { label: "Error", color: "bg-red-500" }
   }[status];
 
   const createSession = async () => {
@@ -262,11 +262,11 @@ export function BrowserPanel({ apiBase }: Props) {
   }, [status, sessionId]);
 
   return (
-    <div className="glass neon-border p-4 md:p-6 space-y-4">
+    <div className="card p-4 md:p-6 space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h2 className="text-xl font-semibold">Browser Automation</h2>
+        <h2 className="text-xl font-semibold text-gray-900">Browser Automation</h2>
         <span className="chip">
-          <span className={`inline-block h-2.5 w-2.5 rounded-full ${statusChip.color}`} aria-hidden="true" />
+          <span className={`inline-block h-2 w-2 rounded-full ${statusChip.color} mr-2`} aria-hidden="true" />
           {statusChip.label}
         </span>
       </div>
@@ -275,7 +275,7 @@ export function BrowserPanel({ apiBase }: Props) {
         {status === "idle" ? (
           <button
             onClick={createSession}
-            className="glow-button px-4 py-3 text-sm tap-target"
+            className="btn-primary text-sm tap-target"
             type="button"
           >
             Start Browser Session
@@ -283,7 +283,7 @@ export function BrowserPanel({ apiBase }: Props) {
         ) : (
           <button
             onClick={closeSession}
-            className="glow-button px-4 py-3 text-sm tap-target bg-red-500/70 hover:bg-red-500/90"
+            className="btn-secondary text-sm tap-target bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
             type="button"
           >
             Close Session
@@ -293,14 +293,14 @@ export function BrowserPanel({ apiBase }: Props) {
           <>
             <button
               onClick={refreshScreenshot}
-              className="glow-button px-4 py-3 text-sm tap-target"
+              className="btn-secondary text-sm tap-target"
               type="button"
             >
               Refresh
             </button>
             <button
               onClick={() => setShowAxTree(!showAxTree)}
-              className="glow-button px-4 py-3 text-sm tap-target"
+              className="btn-secondary text-sm tap-target"
               type="button"
             >
               {showAxTree ? "Hide" : "Show"} AX Tree
@@ -310,19 +310,19 @@ export function BrowserPanel({ apiBase }: Props) {
       </div>
 
       {safetyWarnings.length > 0 && (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 space-y-1">
-          <div className="text-xs font-semibold text-red-300">Safety Warnings</div>
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3 space-y-1">
+          <div className="text-xs font-semibold text-red-800">Safety Warnings</div>
           {safetyWarnings.map((warning, idx) => (
-            <div key={idx} className="text-sm text-red-200">{warning}</div>
+            <div key={idx} className="text-sm text-red-700">{warning}</div>
           ))}
         </div>
       )}
 
       {uncertaintyMessages.length > 0 && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 space-y-1">
-          <div className="text-xs font-semibold text-amber-300">Uncertainty Messages</div>
+        <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 space-y-1">
+          <div className="text-xs font-semibold text-yellow-800">Uncertainty Messages</div>
           {uncertaintyMessages.map((msg, idx) => (
-            <div key={idx} className="text-sm text-amber-200">{msg}</div>
+            <div key={idx} className="text-sm text-yellow-700">{msg}</div>
           ))}
         </div>
       )}
@@ -331,8 +331,8 @@ export function BrowserPanel({ apiBase }: Props) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2 space-y-4">
             <div className="space-y-2">
-              <div className="text-xs text-slate-200/70">Browser Viewport</div>
-              <div className="rounded-lg overflow-hidden border border-white/10 bg-black/40">
+              <div className="text-xs text-gray-600">Browser Viewport</div>
+              <div className="rounded-lg overflow-hidden border border-gray-200 bg-gray-100">
                 {screenshot ? (
                   <img
                     src={`data:image/png;base64,${screenshot}`}
@@ -340,24 +340,24 @@ export function BrowserPanel({ apiBase }: Props) {
                     className="w-full h-auto"
                   />
                 ) : (
-                  <div className="p-8 text-center text-slate-400">Loading screenshot...</div>
+                  <div className="p-8 text-center text-gray-500">Loading screenshot...</div>
                 )}
               </div>
             </div>
 
             <div className="space-y-2">
-              <div className="text-xs text-slate-200/70">Navigate</div>
+              <div className="text-xs text-gray-600">Navigate</div>
               <div className="flex gap-2">
                 <input
                   ref={navigateUrlRef}
                   type="text"
                   placeholder="https://example.com"
-                  className="flex-1 bg-black/40 border border-white/20 rounded px-3 py-2 text-sm text-white placeholder-slate-400"
+                  className="flex-1 bg-white border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                   onKeyPress={(e) => e.key === "Enter" && navigate()}
                 />
                 <button
                   onClick={navigate}
-                  className="glow-button px-4 py-2 text-sm"
+                  className="btn-primary text-sm"
                   type="button"
                 >
                   Go
@@ -367,22 +367,22 @@ export function BrowserPanel({ apiBase }: Props) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <div className="text-xs text-slate-200/70">Click Element</div>
+                <div className="text-xs text-gray-600">Click Element</div>
                 <input
                   ref={clickRoleRef}
                   type="text"
                   placeholder="Role (e.g., button)"
-                  className="w-full bg-black/40 border border-white/20 rounded px-3 py-2 text-sm text-white placeholder-slate-400 mb-2"
+                  className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 placeholder-gray-400 mb-2 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                 />
                 <input
                   ref={clickNameRef}
                   type="text"
                   placeholder="Name (e.g., Search)"
-                  className="w-full bg-black/40 border border-white/20 rounded px-3 py-2 text-sm text-white placeholder-slate-400 mb-2"
+                  className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 placeholder-gray-400 mb-2 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                 />
                 <button
                   onClick={clickElement}
-                  className="w-full glow-button px-4 py-2 text-sm"
+                  className="w-full btn-primary text-sm"
                   type="button"
                 >
                   Click
@@ -390,28 +390,28 @@ export function BrowserPanel({ apiBase }: Props) {
               </div>
 
               <div className="space-y-2">
-                <div className="text-xs text-slate-200/70">Type Text</div>
+                <div className="text-xs text-gray-600">Type Text</div>
                 <input
                   ref={typeRoleRef}
                   type="text"
                   placeholder="Role (e.g., textbox)"
-                  className="w-full bg-black/40 border border-white/20 rounded px-3 py-2 text-sm text-white placeholder-slate-400 mb-2"
+                  className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 placeholder-gray-400 mb-2 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                 />
                 <input
                   ref={typeNameRef}
                   type="text"
                   placeholder="Name (e.g., Search)"
-                  className="w-full bg-black/40 border border-white/20 rounded px-3 py-2 text-sm text-white placeholder-slate-400 mb-2"
+                  className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 placeholder-gray-400 mb-2 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                 />
                 <input
                   ref={typeTextRef}
                   type="text"
                   placeholder="Text to type"
-                  className="w-full bg-black/40 border border-white/20 rounded px-3 py-2 text-sm text-white placeholder-slate-400 mb-2"
+                  className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 placeholder-gray-400 mb-2 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                 />
                 <button
                   onClick={typeText}
-                  className="w-full glow-button px-4 py-2 text-sm"
+                  className="w-full btn-primary text-sm"
                   type="button"
                 >
                   Type
@@ -423,15 +423,15 @@ export function BrowserPanel({ apiBase }: Props) {
           <div className="space-y-4">
             {showAxTree && (
               <div className="space-y-2">
-                <div className="text-xs text-slate-200/70">AX Tree ({axTree.length} elements)</div>
-                <div className="rounded-lg border border-white/10 bg-black/40 p-2 max-h-64 overflow-y-auto">
+                <div className="text-xs text-gray-600">AX Tree ({axTree.length} elements)</div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-2 max-h-64 overflow-y-auto">
                   {axTree.slice(0, 50).map((node, idx) => (
                     <div
                       key={idx}
-                      className="text-xs text-slate-300 mb-1 cursor-pointer hover:bg-white/5 p-1 rounded"
+                      className="text-xs text-gray-700 mb-1 cursor-pointer hover:bg-gray-100 p-1 rounded transition-colors"
                       onClick={() => extractText(node.role, node.name)}
                     >
-                      <span className="text-purple-300">{node.role}</span>: {node.name}
+                      <span className="text-primary font-medium">{node.role}</span>: {node.name}
                     </div>
                   ))}
                 </div>
@@ -439,19 +439,19 @@ export function BrowserPanel({ apiBase }: Props) {
             )}
 
             <div className="space-y-2">
-              <div className="text-xs text-slate-200/70">Action History</div>
-              <div className="rounded-lg border border-white/10 bg-black/40 p-2 max-h-64 overflow-y-auto space-y-2">
+              <div className="text-xs text-gray-600">Action History</div>
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-2 max-h-64 overflow-y-auto space-y-2">
                 {actionHistory.length === 0 ? (
-                  <div className="text-xs text-slate-400">No actions yet</div>
+                  <div className="text-xs text-gray-500">No actions yet</div>
                 ) : (
                   actionHistory.slice().reverse().map((action) => (
-                    <div key={action.id} className="text-xs text-slate-300 border-l-2 border-purple-500/50 pl-2">
+                    <div key={action.id} className="text-xs text-gray-700 border-l-2 border-primary/50 pl-2">
                       <div className="font-semibold">{action.action}</div>
-                      <div className="text-slate-400">
+                      <div className="text-gray-500">
                         {new Date(action.timestamp).toLocaleTimeString()}
                       </div>
                       {action.result.success === false && (
-                        <div className="text-red-400 text-xs mt-1">
+                        <div className="text-red-600 text-xs mt-1">
                           {action.result.error || action.result.message}
                         </div>
                       )}
