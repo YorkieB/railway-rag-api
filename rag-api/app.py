@@ -73,12 +73,14 @@ async def lifespan(app: FastAPI):
     # Startup: Create default admin user if no users exist
     try:
         users = user_manager.list_users()
+        print(f"[Startup] Found {len(users)} existing user(s)")
         if len(users) == 0:
             # Create default admin user
             default_email = os.getenv("DEFAULT_ADMIN_EMAIL", "admin@jarvisb.app")
             default_password = os.getenv("DEFAULT_ADMIN_PASSWORD", "Admin123!")
             default_username = os.getenv("DEFAULT_ADMIN_USERNAME", "admin")
             
+            print(f"[Startup] No users found, creating default admin user: {default_email}")
             try:
                 result = user_manager.create_user(
                     email=default_email,
@@ -92,10 +94,16 @@ async def lifespan(app: FastAPI):
                 print(f"   ⚠️  Please change the default password after first login!")
             except Exception as e:
                 print(f"⚠️  Warning: Could not create default admin user: {e}")
+                import traceback
+                traceback.print_exc()
         else:
             print(f"✅ Found {len(users)} existing user(s), skipping default admin creation")
+            for user in users:
+                print(f"   - {user.get('email', 'unknown')} (admin: {user.get('is_admin', False)})")
     except Exception as e:
         print(f"⚠️  Warning: Error checking for default admin user: {e}")
+        import traceback
+        traceback.print_exc()
     
     yield  # App is running
     
@@ -2811,17 +2819,23 @@ async def debug_auth():
     """Debug endpoint to check authentication status"""
     try:
         users = user_manager.list_users()
+        user_storage_file = os.getenv("USER_STORAGE_FILE", os.path.join(os.getcwd(), "users.json"))
+        storage_file_exists = os.path.exists(user_storage_file)
+        
         return {
             "total_users": len(users),
             "users": users,
             "default_admin_email": os.getenv("DEFAULT_ADMIN_EMAIL", "admin@jarvisb.app"),
-            "user_storage_file": os.getenv("USER_STORAGE_FILE", os.path.join(os.getcwd(), "users.json")),
-            "storage_file_exists": os.path.exists(os.getenv("USER_STORAGE_FILE", os.path.join(os.getcwd(), "users.json")))
+            "user_storage_file": user_storage_file,
+            "storage_file_exists": storage_file_exists,
+            "current_working_dir": os.getcwd()
         }
     except Exception as e:
+        import traceback
         return {
             "error": str(e),
-            "type": type(e).__name__
+            "type": type(e).__name__,
+            "traceback": traceback.format_exc()
         }
 
 @app.post("/auth/forgot-password")
