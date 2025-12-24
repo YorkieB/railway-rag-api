@@ -334,13 +334,8 @@ class WebCompanion:
                 if missing:
                     print(f"[WebCompanion] Missing required fields in options: {missing}")
                     raise Exception(f"Missing required options: {missing}. Available options: {list(options.keys())}")
+            # Re-raise the TypeError if we couldn't handle it
             raise
-            except Exception as e2:
-                print(f"[WebCompanion] connect() without arguments also failed: {e2}")
-                # List available methods for debugging
-                available = [x for x in dir(listen_v1) if not x.startswith('_')]
-                print(f"[WebCompanion] Available methods on listen.v1: {available}")
-                raise Exception(f"All connect() attempts failed. Available methods: {available}. Errors: {e}, {e2}")
         except Exception as e:
             print(f"[WebCompanion] Error creating Deepgram connection: {e}")
             import traceback
