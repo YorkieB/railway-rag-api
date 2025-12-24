@@ -21,6 +21,7 @@ export function CompanionVoice({ apiBase: companionApiBase, jarvisEnabled = fals
   const [showMemories, setShowMemories] = useState(false);
   const [memoryCount, setMemoryCount] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [micStatus, setMicStatus] = useState<"unknown" | "granted" | "denied" | "error">("unknown");
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioQueueRef = useRef<Array<string>>([]);
@@ -73,12 +74,20 @@ export function CompanionVoice({ apiBase: companionApiBase, jarvisEnabled = fals
       setClient(companionClient);
       setStatus("connected");
       setErrorMessage(null);
+      setMicStatus("granted"); // If connect succeeded, mic access was granted
       diagnostics.success("companion", "WebSocket connected successfully");
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       diagnostics.error("companion", "Failed to start session", { error: errorMsg }, err instanceof Error ? err : undefined);
       setErrorMessage(errorMsg || "Failed to start session. Check Diagnostics for details.");
       setStatus("error");
+      
+      // Check if it's a microphone permission error
+      if (errorMsg.toLowerCase().includes("microphone") || errorMsg.toLowerCase().includes("permission")) {
+        setMicStatus("denied");
+      } else {
+        setMicStatus("error");
+      }
     }
   };
 
@@ -270,6 +279,20 @@ export function CompanionVoice({ apiBase: companionApiBase, jarvisEnabled = fals
         <p className="text-xs text-blue-600 mt-1">
           API: {companionApiBase || companionApiBaseFromEnv()}
         </p>
+        {status === "connected" && (
+          <div className="mt-2 flex items-center gap-2">
+            <span className={`inline-block h-2 w-2 rounded-full ${
+              micStatus === "granted" ? "bg-green-500 animate-pulse" : 
+              micStatus === "denied" ? "bg-red-500" : 
+              "bg-yellow-500"
+            }`} aria-hidden="true" />
+            <span className="text-xs text-blue-700">
+              {micStatus === "granted" ? "Microphone active" : 
+               micStatus === "denied" ? "Microphone permission denied" : 
+               "Microphone status unknown"}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-3">
