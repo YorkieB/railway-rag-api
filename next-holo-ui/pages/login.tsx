@@ -18,11 +18,20 @@ export default function Login() {
     setLoading(true);
 
     try {
+      console.log("Attempting login with email:", email);
       await login(email, password, rememberMe);
+      console.log("Login successful, redirecting...");
       // Redirect to home page after successful login
       router.push("/");
     } catch (err: any) {
-      setError(err.message || "Login failed. Please check your credentials.");
+      console.error("Login error:", err);
+      const errorMessage = err.message || "Login failed. Please check your credentials.";
+      setError(errorMessage);
+      console.error("Error details:", {
+        message: err.message,
+        stack: err.stack,
+        response: err.response
+      });
     } finally {
       setLoading(false);
     }
