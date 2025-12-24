@@ -2838,6 +2838,51 @@ async def debug_auth():
             "traceback": traceback.format_exc()
         }
 
+@app.post("/auth/create-default-admin")
+async def create_default_admin():
+    """Force create default admin user (useful if users.json was lost)"""
+    try:
+        default_email = os.getenv("DEFAULT_ADMIN_EMAIL", "admin@jarvisb.app")
+        default_password = os.getenv("DEFAULT_ADMIN_PASSWORD", "Admin123!")
+        default_username = os.getenv("DEFAULT_ADMIN_USERNAME", "admin")
+        
+        # Check if user already exists
+        users = user_manager.list_users()
+        for user in users:
+            if user.get("email") == default_email:
+                return {
+                    "status": "exists",
+                    "message": f"User {default_email} already exists",
+                    "user": user
+                }
+        
+        # Create the user
+        result = user_manager.create_user(
+            email=default_email,
+            password=default_password,
+            username=default_username,
+            is_admin=True
+        )
+        
+        return {
+            "status": "created",
+            "message": f"Default admin user created: {default_email}",
+            "user": result,
+            "credentials": {
+                "email": default_email,
+                "password": default_password,
+                "username": default_username
+            }
+        }
+    except Exception as e:
+        import traceback
+        return {
+            "status": "error",
+            "error": str(e),
+            "type": type(e).__name__,
+            "traceback": traceback.format_exc()
+        }
+
 @app.post("/auth/forgot-password")
 async def forgot_password(request: ForgotPasswordRequest):
     """Request password reset - generates reset token"""
