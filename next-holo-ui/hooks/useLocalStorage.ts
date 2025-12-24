@@ -1,14 +1,21 @@
 import { useEffect, useState } from "react";
 
-export function useLocalStorage(key: string, defaultValue: string) {
-  const [value, setValue] = useState<string>(defaultValue);
+// Generic version that supports any type
+export function useLocalStorage<T>(key: string, defaultValue: T): [T, (value: T | ((prev: T) => T)) => void, boolean] {
+  const [value, setValue] = useState<T>(defaultValue);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     try {
       const stored = typeof window !== "undefined" ? window.localStorage.getItem(key) : null;
       if (stored !== null) {
-        setValue(stored);
+        try {
+          const parsed = JSON.parse(stored);
+          setValue(parsed);
+        } catch {
+          // If parsing fails, treat as string (backward compatibility)
+          setValue(stored as unknown as T);
+        }
       }
     } catch {
       // ignore
@@ -20,12 +27,20 @@ export function useLocalStorage(key: string, defaultValue: string) {
   useEffect(() => {
     if (!ready) return;
     try {
-      window.localStorage.setItem(key, value);
+      const serialized = typeof value === "string" ? value : JSON.stringify(value);
+      window.localStorage.setItem(key, serialized);
     } catch {
       // ignore
     }
   }, [key, ready, value]);
 
-  return [value, setValue, ready] as const;
+  const setStoredValue = (newValue: T | ((prev: T) => T)) => {
+    setValue((prev) => {
+      const next = typeof newValue === "function" ? (newValue as (prev: T) => T)(prev) : newValue;
+      return next;
+    });
+  };
+
+  return [value, setStoredValue, ready] as const;
 }
 

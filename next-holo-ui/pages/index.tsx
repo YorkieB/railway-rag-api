@@ -15,6 +15,7 @@ import { AgentOrchestration } from "@/components/AgentOrchestration";
 import { AdvancedMemoryPanel } from "@/components/AdvancedMemoryPanel";
 import { EvaluationDashboard } from "@/components/EvaluationDashboard";
 import { Avatar } from "@/components/Avatar";
+import { AvatarDisplay } from "@/components/AvatarDisplay";
 import { SettingsDrawer } from "@/components/SettingsDrawer";
 import { StatusBar } from "@/components/StatusBar";
 import { ImageGenerator } from "@/components/ImageGenerator";
@@ -51,6 +52,9 @@ export default function Home() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [backendStatus, setBackendStatus] = useState<string>("unknown");
   const [activePanel, setActivePanel] = useState<PanelId>("home");
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [speakingText, setSpeakingText] = useState<string>("");
+  const [audioUrl, setAudioUrl] = useState<string>("");
 
   const chatRef = useRef<HTMLDivElement | null>(null);
 
@@ -90,7 +94,23 @@ export default function Home() {
       };
       setMessages(prev => [...prev, assistantMsg]);
       if (ttsEnabled && elevenKey && elevenVoice) {
-        void speakWithElevenLabs(res.answer, elevenKey, elevenVoice);
+        setSpeakingText(res.answer);
+        setIsSpeaking(true);
+        try {
+          const url = await speakWithElevenLabs(res.answer, elevenKey, elevenVoice);
+          setAudioUrl(url);
+          // Reset speaking state after audio duration estimate (rough estimate: 150 words per minute)
+          const wordCount = res.answer.split(/\s+/).length;
+          const estimatedDuration = (wordCount / 150) * 60 * 1000; // milliseconds
+          setTimeout(() => {
+            setIsSpeaking(false);
+            setSpeakingText("");
+            setAudioUrl("");
+          }, estimatedDuration);
+        } catch (err) {
+          console.error("TTS error:", err);
+          setIsSpeaking(false);
+        }
       }
       setArtifacts(prev => [
         ...prev,
@@ -164,8 +184,9 @@ export default function Home() {
     switch (activePanel) {
       case "home":
         return (
-          <div ref={chatRef} className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
+          <div ref={chatRef} className="grid grid-cols-1 xl:grid-cols-3 gap-4 lg:gap-6">
             <ChatPanel messages={messages} onSend={handleSend} sending={sending || uploading} onFileSelected={handleUpload} />
+            <AvatarDisplay isSpeaking={isSpeaking} audioUrl={audioUrl} text={speakingText} />
             <ArtifactPanel
               artifacts={artifacts}
               onClear={() => setArtifacts([])}

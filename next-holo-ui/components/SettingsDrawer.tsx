@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { DiagnosticsPanel } from "@/components/DiagnosticsPanel";
 import { UserManagement } from "@/components/UserManagement";
 import { IntegrationsPanel } from "@/components/IntegrationsPanel";
+import { JarvisCustomization } from "@/components/JarvisCustomization";
 import { useAuth } from "@/lib/auth";
 
 type Props = {
@@ -44,7 +45,7 @@ export function SettingsDrawer({
 }: Props) {
   const { isAdmin, token } = useAuth();
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<"settings" | "diagnostics" | "users" | "integrations">("settings");
+  const [activeTab, setActiveTab] = useState<"settings" | "diagnostics" | "users" | "integrations" | "jarvis">("settings");
 
   useEffect(() => {
     setMounted(true);
@@ -124,6 +125,8 @@ export function SettingsDrawer({
               <UserManagement apiBase={apiBase} token={token || ""} />
             ) : activeTab === "integrations" ? (
               <IntegrationsPanel apiBase={apiBase} token={token || ""} />
+            ) : activeTab === "jarvis" ? (
+              <JarvisCustomization apiBase={apiBase} />
             ) : (
             <div className="space-y-4">
               <div className="border-b border-gray-200 pb-4">
