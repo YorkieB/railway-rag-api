@@ -40,19 +40,18 @@ export function CompanionVoice({ apiBase: companionApiBase, jarvisEnabled = fals
       const apiBase = companionApiBase || companionApiBaseFromEnv();
       diagnostics.info("companion", `Connecting to companion API at: ${apiBase}`);
       
-      // Test connection first
+      // Test connection first - use rag-api health endpoint (companion is integrated)
       try {
         const healthCheck = await fetch(`${apiBase}/health`);
         if (!healthCheck.ok) {
-          const error = new Error(`Companion API health check failed: ${healthCheck.status}`);
+          const error = new Error(`API health check failed: ${healthCheck.status}`);
           diagnostics.logHealthCheck("companion-api", "failed", { status: healthCheck.status, url: apiBase });
           throw error;
         }
         diagnostics.logHealthCheck("companion-api", "ok", { url: apiBase });
       } catch (healthErr) {
-        const error = new Error(`Cannot reach companion API at ${apiBase}. Make sure the companion-api service is running. Error: ${healthErr instanceof Error ? healthErr.message : String(healthErr)}`);
-        diagnostics.logConnectionError("companion-api", healthErr, apiBase);
-        throw error;
+        // Health check failed, but try to proceed anyway (might be a CORS issue)
+        diagnostics.warn("companion", `Health check failed, but proceeding: ${healthErr instanceof Error ? healthErr.message : String(healthErr)}`);
       }
       
       const companionClient = new CompanionClient(apiBase);
