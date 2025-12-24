@@ -24,51 +24,82 @@ except ImportError:
 # Try to import Deepgram SDK
 # Use a function to import at runtime to avoid module load failures
 def _import_deepgram():
-    """Import Deepgram SDK with fallbacks. Returns (success, DeepgramClient, LiveOptions, LiveTranscriptionEvents)"""
+    """Import Deepgram SDK with fallbacks. Returns True if successful, False otherwise"""
     global DEEPGRAM_AVAILABLE, DeepgramClient, LiveOptions, LiveTranscriptionEvents
     
     # First check if already imported
     if DEEPGRAM_AVAILABLE and DeepgramClient is not None:
+        print(f"[_import_deepgram] Already imported: DEEPGRAM_AVAILABLE={DEEPGRAM_AVAILABLE}, DeepgramClient={DeepgramClient}")
         return True
+    
+    print("[_import_deepgram] Attempting to import Deepgram SDK...")
+    
+    # Check if deepgram package exists
+    try:
+        import deepgram
+        print(f"[_import_deepgram] deepgram package found: {deepgram}, version: {getattr(deepgram, '__version__', 'unknown')}")
+    except ImportError as e:
+        print(f"[_import_deepgram] deepgram package not found: {e}")
     
     try:
         # For deepgram-sdk v3.0+, the import is from 'deepgram'
         # For v5.x, the import path is the same
+        print("[_import_deepgram] Trying: from deepgram import DeepgramClient, LiveOptions")
         from deepgram import DeepgramClient, LiveOptions
+        print(f"[_import_deepgram] Successfully imported DeepgramClient: {DeepgramClient}, type: {type(DeepgramClient)}")
+        
         try:
             from deepgram import LiveTranscriptionEvents
+            print("[_import_deepgram] Successfully imported LiveTranscriptionEvents from deepgram")
         except ImportError:
             # LiveTranscriptionEvents might be in a different location or not available
             try:
                 from deepgram.clients import LiveTranscriptionEvents
+                print("[_import_deepgram] Successfully imported LiveTranscriptionEvents from deepgram.clients")
             except ImportError:
                 try:
                     from deepgram.clients.listen import LiveTranscriptionEvents
+                    print("[_import_deepgram] Successfully imported LiveTranscriptionEvents from deepgram.clients.listen")
                 except ImportError:
+                    print("[_import_deepgram] LiveTranscriptionEvents not available (optional)")
                     LiveTranscriptionEvents = None
+        
         DEEPGRAM_AVAILABLE = True
-        print(f"[Companion] Successfully imported DeepgramClient from 'deepgram' (DeepgramClient={DeepgramClient}, type={type(DeepgramClient)})")
+        print(f"[_import_deepgram] SUCCESS: DEEPGRAM_AVAILABLE=True, DeepgramClient={DeepgramClient}")
         return True
     except ImportError as e1:
-        print(f"[Companion] Failed to import from 'deepgram': {e1}")
+        print(f"[_import_deepgram] Failed to import from 'deepgram': {type(e1).__name__}: {e1}")
+        import traceback
+        traceback.print_exc()
         try:
             # Fallback: try deepgram_sdk (older versions)
+            print("[_import_deepgram] Trying fallback: from deepgram_sdk import DeepgramClient, LiveOptions")
             from deepgram_sdk import DeepgramClient, LiveOptions
             try:
                 from deepgram_sdk import LiveTranscriptionEvents
             except ImportError:
                 LiveTranscriptionEvents = None
             DEEPGRAM_AVAILABLE = True
-            print("[Companion] Successfully imported DeepgramClient from 'deepgram_sdk'")
+            print("[_import_deepgram] Successfully imported DeepgramClient from 'deepgram_sdk'")
             return True
         except ImportError as e2:
-            print(f"[Companion] Failed to import from 'deepgram_sdk': {e2}")
-            print("[Companion] Deepgram SDK not available. Install with: pip install deepgram-sdk")
+            print(f"[_import_deepgram] Failed to import from 'deepgram_sdk': {type(e2).__name__}: {e2}")
+            traceback.print_exc()
+            print("[_import_deepgram] Deepgram SDK not available. Install with: pip install deepgram-sdk")
             DEEPGRAM_AVAILABLE = False
             DeepgramClient = None
             LiveOptions = None
             LiveTranscriptionEvents = None
             return False
+    except Exception as e:
+        print(f"[_import_deepgram] Unexpected error during import: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
+        DEEPGRAM_AVAILABLE = False
+        DeepgramClient = None
+        LiveOptions = None
+        LiveTranscriptionEvents = None
+        return False
 
 # Initialize at module load
 DEEPGRAM_AVAILABLE = False
