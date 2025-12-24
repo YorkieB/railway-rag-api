@@ -3693,10 +3693,36 @@ async def check_companion_keys():
     Diagnostic endpoint to check if companion API keys are set.
     Returns which keys are present/missing (without exposing values).
     """
+    # Debug: Check environment variables
+    dg_key = os.getenv("DEEPGRAM_API_KEY")
+    eleven_key = os.getenv("ELEVENLABS_API_KEY")
+    openai_key = os.getenv("OPENAI_API_KEY")
+    
+    # Debug: Get all environment variable names (to see what Railway provides)
+    all_env_keys = sorted([k for k in os.environ.keys() if "API" in k.upper() or "KEY" in k.upper()])
+    
     keys_status = {
-        "DEEPGRAM_API_KEY": "set" if os.getenv("DEEPGRAM_API_KEY") else "missing",
-        "ELEVENLABS_API_KEY": "set" if os.getenv("ELEVENLABS_API_KEY") else "missing",
-        "OPENAI_API_KEY": "set" if os.getenv("OPENAI_API_KEY") else "missing",
+        "DEEPGRAM_API_KEY": "set" if dg_key else "missing",
+        "ELEVENLABS_API_KEY": "set" if eleven_key else "missing",
+        "OPENAI_API_KEY": "set" if openai_key else "missing",
+    }
+    
+    # Debug: Check for common typos
+    debug_info = {
+        "deepgram_variants": {
+            "DEEPGRAM_API_KEY": bool(os.getenv("DEEPGRAM_API_KEY")),
+            "DEEPGRAM_API-KEY": bool(os.getenv("DEEPGRAM_API-KEY")),
+            "deepgram_api_key": bool(os.getenv("deepgram_api_key")),
+        },
+        "elevenlabs_variants": {
+            "ELEVENLABS_API_KEY": bool(os.getenv("ELEVENLABS_API_KEY")),
+            "ELEVENLABS_API-KEY": bool(os.getenv("ELEVENLABS_API-KEY")),
+            "elevenlabs_api_key": bool(os.getenv("elevenlabs_api_key")),
+        },
+        "all_api_env_vars": all_env_keys[:20],  # First 20 to avoid exposing too much
+        "dg_key_length": len(dg_key) if dg_key else 0,
+        "eleven_key_length": len(eleven_key) if eleven_key else 0,
+        "openai_key_length": len(openai_key) if openai_key else 0,
     }
     
     all_set = all(status == "set" for status in keys_status.values())
@@ -3705,7 +3731,8 @@ async def check_companion_keys():
         "status": "ok" if all_set else "missing_keys",
         "keys": keys_status,
         "companion_available": COMPANION_AVAILABLE,
-        "message": "All keys set" if all_set else f"Missing keys: {', '.join([k for k, v in keys_status.items() if v == 'missing'])}"
+        "message": "All keys set" if all_set else f"Missing keys: {', '.join([k for k, v in keys_status.items() if v == 'missing'])}",
+        "debug": debug_info
     }
 
 @app.post("/companion/session/create")

@@ -80,9 +80,28 @@ class WebCompanion:
         
         # Initialize API Clients
         try:
+            # Debug: Log environment variable check
+            import logging
+            logger = logging.getLogger(__name__)
+            
             dg_key = os.getenv("DEEPGRAM_API_KEY")
             openai_key = os.getenv("OPENAI_API_KEY")
             eleven_key = os.getenv("ELEVENLABS_API_KEY")
+            
+            # Debug logging
+            logger.info(f"Environment variable check - DEEPGRAM_API_KEY: {'SET' if dg_key else 'MISSING'} (length: {len(dg_key) if dg_key else 0})")
+            logger.info(f"Environment variable check - ELEVENLABS_API_KEY: {'SET' if eleven_key else 'MISSING'} (length: {len(eleven_key) if eleven_key else 0})")
+            logger.info(f"Environment variable check - OPENAI_API_KEY: {'SET' if openai_key else 'MISSING'} (length: {len(openai_key) if openai_key else 0})")
+            
+            # Debug: Check for common typos
+            if not dg_key:
+                # Check for common typos
+                dg_hyphen = os.getenv("DEEPGRAM_API-KEY")
+                dg_lower = os.getenv("deepgram_api_key")
+                if dg_hyphen:
+                    logger.warning("Found DEEPGRAM_API-KEY (with hyphen) but need DEEPGRAM_API_KEY (with underscore)")
+                if dg_lower:
+                    logger.warning("Found deepgram_api_key (lowercase) but need DEEPGRAM_API_KEY (uppercase)")
             
             if not dg_key:
                 raise ValueError("DEEPGRAM_API_KEY environment variable is required")
