@@ -212,6 +212,9 @@ async def cost_tracking_middleware(request: Request, call_next):
     
     return response
 
+# TEMPORARY: Disable authentication (set to False to re-enable)
+AUTH_DISABLED = os.getenv("AUTH_DISABLED", "true").lower() == "true"
+
 # Initialize clients
 chromadb_path = os.getenv("CHROMADB_PATH", "./rag_knowledge_base")
 collection_name = "documents"
@@ -2915,6 +2918,31 @@ async def login_user(request: UserLoginRequest):
 async def get_current_user(request: Request):
     """Get current user from JWT token"""
     try:
+        # TEMPORARY: Skip authentication if disabled
+        if AUTH_DISABLED:
+            # Return default admin user
+            default_email = os.getenv("DEFAULT_ADMIN_EMAIL", "admin@jarvisb.app")
+            # Find user by email
+            users = user_manager.list_users()
+            user = None
+            for u in users:
+                if u.get("email") == default_email:
+                    user = u
+                    break
+            
+            if not user:
+                # Create default user if it doesn't exist
+                default_password = os.getenv("DEFAULT_ADMIN_PASSWORD", "Admin123!")
+                default_username = os.getenv("DEFAULT_ADMIN_USERNAME", "admin")
+                user = user_manager.create_user(
+                    email=default_email,
+                    password=default_password,
+                    username=default_username,
+                    is_admin=True
+                )
+            return user
+        
+        # Normal authentication flow
         authorization = request.headers.get("authorization")
         if not authorization or not authorization.startswith("Bearer "):
             raise HTTPException(status_code=401, detail="Not authenticated")
@@ -3045,6 +3073,18 @@ def get_auth_header(request: Request) -> Optional[str]:
 
 def require_admin(request: Request) -> str:
     """Helper to require admin authentication and return user_id"""
+    # TEMPORARY: Skip authentication if disabled
+    if AUTH_DISABLED:
+        default_email = os.getenv("DEFAULT_ADMIN_EMAIL", "admin@jarvisb.app")
+        # Find user by email
+        users = user_manager.list_users()
+        for u in users:
+            if u.get("email") == default_email:
+                return u.get("user_id", "default")
+        # Return default user_id if user doesn't exist
+        return "default"
+    
+    # Normal authentication flow
     authorization = get_auth_header(request)
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Not authenticated")
