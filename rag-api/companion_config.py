@@ -29,7 +29,30 @@ OPENAI_MODEL = "gpt-4o"  # GPT-4o for best latency/intelligence balance
 
 # RAG API Configuration (for web access)
 # In rag-api, this should point to itself (same service)
-RAG_API_URL = os.getenv("RAG_API_URL", os.getenv("API_BASE_URL", "http://localhost:8080"))
+# Auto-detect production URL from environment or use localhost for dev
+def get_rag_api_url():
+    """Get RAG API URL - auto-detect production or use localhost for dev"""
+    # Check explicit env var first
+    if os.getenv("RAG_API_URL"):
+        return os.getenv("RAG_API_URL")
+    if os.getenv("API_BASE_URL"):
+        return os.getenv("API_BASE_URL")
+    
+    # Check Railway environment (production)
+    railway_url = os.getenv("RAILWAY_PUBLIC_DOMAIN")
+    if railway_url:
+        # Railway provides domain like "xxx.up.railway.app"
+        return f"https://{railway_url}"
+    
+    # Check for custom domain
+    custom_domain = os.getenv("CUSTOM_DOMAIN")
+    if custom_domain:
+        return f"https://{custom_domain}"
+    
+    # Fallback to localhost for development
+    return "http://localhost:8080"
+
+RAG_API_URL = get_rag_api_url()
 
 # Persona Definition (Empathetic System Prompt with Web Access)
 SYSTEM_PROMPT = """

@@ -330,27 +330,45 @@ class WebCompanion:
         """Ensure browser session exists, create if needed."""
         if not self.browser_session_id:
             try:
-                response = await self.http_client.post(
-                    f"{self.rag_api_url}/browser/sessions",
-                    params={"user_id": "companion"}
-                )
-                if response.status_code == 200:
-                    data = response.json()
-                    self.browser_session_id = data.get("session_id")
-                    if COLORAMA_AVAILABLE:
-                        print(Fore.GREEN + f"Created browser session: {self.browser_session_id}")
-                    else:
-                        print(f"Created browser session: {self.browser_session_id}")
-                else:
-                    if COLORAMA_AVAILABLE:
-                        print(Fore.RED + f"Failed to create browser session: {response.status_code}")
-                    else:
-                        print(f"Failed to create browser session: {response.status_code}")
-            except Exception as e:
+                # Use internal call instead of HTTP request (same process)
+                # This avoids network issues and is faster
+                from browser.session import BrowserSession, active_browser_sessions
+                import uuid
+                
+                session_id = str(uuid.uuid4())
+                browser_session = BrowserSession(session_id)
+                await browser_session.initialize()
+                active_browser_sessions[session_id] = browser_session
+                
+                self.browser_session_id = session_id
                 if COLORAMA_AVAILABLE:
-                    print(Fore.RED + f"Error creating browser session: {e}")
+                    print(Fore.GREEN + f"Created browser session: {self.browser_session_id}")
                 else:
-                    print(f"Error creating browser session: {e}")
+                    print(f"Created browser session: {self.browser_session_id}")
+            except Exception as e:
+                # Fallback to HTTP request if internal call fails
+                try:
+                    response = await self.http_client.post(
+                        f"{self.rag_api_url}/browser/sessions",
+                        params={"user_id": "companion"}
+                    )
+                    if response.status_code == 200:
+                        data = response.json()
+                        self.browser_session_id = data.get("session_id")
+                        if COLORAMA_AVAILABLE:
+                            print(Fore.GREEN + f"Created browser session via HTTP: {self.browser_session_id}")
+                        else:
+                            print(f"Created browser session via HTTP: {self.browser_session_id}")
+                    else:
+                        if COLORAMA_AVAILABLE:
+                            print(Fore.RED + f"Failed to create browser session: {response.status_code}")
+                        else:
+                            print(f"Failed to create browser session: {response.status_code}")
+                except Exception as http_err:
+                    if COLORAMA_AVAILABLE:
+                        print(Fore.RED + f"Error creating browser session (both methods failed): {e}, {http_err}")
+                    else:
+                        print(f"Error creating browser session (both methods failed): {e}, {http_err}")
         return self.browser_session_id or ""
     
     async def _search_web(self, query: str) -> str:
@@ -360,31 +378,41 @@ class WebCompanion:
             if not session_id:
                 return "Unable to access web: browser session unavailable"
             
+            # Use internal browser session directly (same process)
+            from browser.session import active_browser_sessions
+            from browser.actions import ActionExecutor
+            from browser.ax_tree import extract_ax_tree
+            
+            if session_id not in active_browser_sessions:
+                return "Browser session expired, please try again"
+            
+            browser_session = active_browser_sessions[session_id]
+            
             # Navigate to search engine
             search_url = f"https://www.google.com/search?q={query.replace(' ', '+')}"
-            response = await self.http_client.post(
-                f"{self.rag_api_url}/browser/sessions/{session_id}/navigate",
-                params={"url": search_url}
-            )
+            nav_result = await browser_session.navigate(search_url)
             
-            if response.status_code != 200:
-                return f"Failed to navigate to search: {response.status_code}"
+            if not nav_result.get("success"):
+                return f"Failed to navigate to search: {nav_result.get('error', 'Unknown error')}"
             
-            # Get page content
-            await asyncio.sleep(2)  # Wait for page load
+            # Wait for page load
+            await asyncio.sleep(2)
             
             # Extract text from page
-            extract_response = await self.http_client.post(
-                f"{self.rag_api_url}/browser/sessions/{session_id}/actions/extract",
-                params={"role": "main", "include_text": "true"}
-            )
-            
-            if extract_response.status_code == 200:
-                data = extract_response.json()
-                text = data.get("text", "")[:2000]  # Limit to 2000 chars
+            try:
+                ax_tree = await extract_ax_tree(browser_session.page)
+                executor = ActionExecutor(browser_session.page)
+                extract_result = await executor.extract_text(ax_tree, role="main")
+                
+                text = extract_result.get("text", "")[:2000]  # Limit to 2000 chars
                 return f"Search results for '{query}': {text}"
-            else:
-                return f"Found search results for '{query}' but couldn't extract text"
+            except Exception as extract_err:
+                # Fallback: try to get page title at least
+                try:
+                    title = await browser_session.page.title()
+                    return f"Found search results for '{query}' on {title}"
+                except:
+                    return f"Found search results for '{query}' but couldn't extract text: {str(extract_err)}"
                 
         except Exception as e:
             return f"Error searching web: {str(e)}"
@@ -396,31 +424,41 @@ class WebCompanion:
             if not session_id:
                 return "Unable to access web: browser session unavailable"
             
-            # Navigate to URL
-            response = await self.http_client.post(
-                f"{self.rag_api_url}/browser/sessions/{session_id}/navigate",
-                params={"url": url}
-            )
+            # Use internal browser session directly (same process)
+            from browser.session import active_browser_sessions
+            from browser.actions import ActionExecutor
+            from browser.ax_tree import extract_ax_tree
             
-            if response.status_code != 200:
-                return f"Failed to navigate to {url}: {response.status_code}"
+            if session_id not in active_browser_sessions:
+                return "Browser session expired, please try again"
+            
+            browser_session = active_browser_sessions[session_id]
+            
+            # Navigate to URL
+            nav_result = await browser_session.navigate(url)
+            
+            if not nav_result.get("success"):
+                return f"Failed to navigate to {url}: {nav_result.get('error', 'Unknown error')}"
             
             # Wait for page load
             await asyncio.sleep(2)
             
             # Extract text
-            extract_response = await self.http_client.post(
-                f"{self.rag_api_url}/browser/sessions/{session_id}/actions/extract",
-                params={"role": "main", "include_text": "true"}
-            )
-            
-            if extract_response.status_code == 200:
-                data = extract_response.json()
-                text = data.get("text", "")[:2000]
-                title = data.get("title", url)
+            try:
+                ax_tree = await extract_ax_tree(browser_session.page)
+                executor = ActionExecutor(browser_session.page)
+                extract_result = await executor.extract_text(ax_tree, role="main")
+                
+                text = extract_result.get("text", "")[:2000]
+                title = nav_result.get("title", url)
                 return f"Content from {title}: {text}"
-            else:
-                return f"Navigated to {url} but couldn't extract content"
+            except Exception as extract_err:
+                # Fallback: use page title
+                try:
+                    title = await browser_session.page.title()
+                    return f"Navigated to {title} but couldn't extract full content: {str(extract_err)}"
+                except:
+                    return f"Navigated to {url} but couldn't extract content: {str(extract_err)}"
                 
         except Exception as e:
             return f"Error browsing web: {str(e)}"
