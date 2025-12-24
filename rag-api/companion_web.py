@@ -29,6 +29,7 @@ LiveTranscriptionEvents = None
 
 try:
     # For deepgram-sdk v3.0+, the import is from 'deepgram'
+    # For v5.x, the import path is the same
     from deepgram import DeepgramClient, LiveOptions
     try:
         from deepgram import LiveTranscriptionEvents
@@ -37,9 +38,12 @@ try:
         try:
             from deepgram.clients import LiveTranscriptionEvents
         except ImportError:
-            LiveTranscriptionEvents = None
+            try:
+                from deepgram.clients.listen import LiveTranscriptionEvents
+            except ImportError:
+                LiveTranscriptionEvents = None
     DEEPGRAM_AVAILABLE = True
-    print("[Companion] Successfully imported DeepgramClient from 'deepgram'")
+    print(f"[Companion] Successfully imported DeepgramClient from 'deepgram' (DeepgramClient={DeepgramClient}, type={type(DeepgramClient)})")
 except ImportError as e1:
     print(f"[Companion] Failed to import from 'deepgram': {e1}")
     try:
