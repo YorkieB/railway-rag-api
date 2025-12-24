@@ -309,7 +309,39 @@ class WebCompanion:
                 "vad_events": True
             }
         
-        self.dg_connection = self.dg_client.listen.live.v("1")
+        # In Deepgram SDK v5.x, the API has changed
+        # Try different patterns to find the correct one
+        try:
+            # Try v5.x pattern: listen.websocket.v("1")
+            print(f"[WebCompanion] Attempting to create Deepgram connection using listen.websocket.v('1')")
+            self.dg_connection = self.dg_client.listen.websocket.v("1")
+            print(f"[WebCompanion] Successfully created connection using websocket method")
+        except AttributeError as e1:
+            print(f"[WebCompanion] websocket method not available: {e1}")
+            try:
+                # Try v3.x pattern: listen.live.v("1")
+                print(f"[WebCompanion] Attempting to create Deepgram connection using listen.live.v('1')")
+                self.dg_connection = self.dg_client.listen.live.v("1")
+                print(f"[WebCompanion] Successfully created connection using live method")
+            except AttributeError as e2:
+                print(f"[WebCompanion] live method not available: {e2}")
+                # Try direct access
+                try:
+                    print(f"[WebCompanion] Attempting direct access to listen client")
+                    listen_client = self.dg_client.listen
+                    print(f"[WebCompanion] ListenClient type: {type(listen_client)}, dir: {[x for x in dir(listen_client) if not x.startswith('_')]}")
+                    # Try to find the correct method
+                    if hasattr(listen_client, 'websocket'):
+                        self.dg_connection = listen_client.websocket.v("1")
+                    elif hasattr(listen_client, 'live'):
+                        self.dg_connection = listen_client.live.v("1")
+                    else:
+                        raise AttributeError(f"ListenClient has neither 'websocket' nor 'live' attribute. Available: {[x for x in dir(listen_client) if not x.startswith('_')]}")
+                except Exception as e3:
+                    print(f"[WebCompanion] All connection attempts failed: {e3}")
+                    import traceback
+                    traceback.print_exc()
+                    raise Exception(f"Failed to create Deepgram connection. Tried websocket, live, and direct access. Error: {e3}")
         
         # Event handlers
         def on_message(result, **kwargs):
