@@ -317,19 +317,24 @@ class WebCompanion:
             listen_v1 = self.dg_client.listen.v1
             print(f"[WebCompanion] Successfully accessed listen.v1: {type(listen_v1)}")
             
-            # In v5.x, connect() takes options as a keyword argument: connect(options={...})
-            print(f"[WebCompanion] Calling connect(options=...) with options: {options}")
-            self.dg_connection = listen_v1.connect(options=options)
-            print(f"[WebCompanion] Successfully created Deepgram connection using listen.v1.connect(options=options)")
+            # In v5.x, connect() takes individual keyword arguments, not an options dict
+            # Unpack the options dict as keyword arguments: connect(model=..., encoding=..., etc.)
+            print(f"[WebCompanion] Calling connect(**options) with unpacked options: {options}")
+            self.dg_connection = listen_v1.connect(**options)
+            print(f"[WebCompanion] Successfully created Deepgram connection using listen.v1.connect(**options)")
         except TypeError as e:
-            print(f"[WebCompanion] TypeError with connect(options=...): {e}")
-            # Try without options - maybe connect() doesn't take options
-            try:
-                print(f"[WebCompanion] Trying connect() without any arguments")
-                self.dg_connection = listen_v1.connect()
-                print(f"[WebCompanion] Successfully created connection without options")
-                # Store options to use during start() if needed
-                self.dg_options = options
+            print(f"[WebCompanion] TypeError with connect(**options): {e}")
+            # The error message might tell us what's required
+            if "required keyword-only argument" in str(e):
+                # Try to extract the required argument name and add it
+                print(f"[WebCompanion] Error indicates missing required argument. Full error: {e}")
+                # Check if we have all required fields in options
+                required_fields = ['model']  # Based on error message
+                missing = [f for f in required_fields if f not in options]
+                if missing:
+                    print(f"[WebCompanion] Missing required fields in options: {missing}")
+                    raise Exception(f"Missing required options: {missing}. Available options: {list(options.keys())}")
+            raise
             except Exception as e2:
                 print(f"[WebCompanion] connect() without arguments also failed: {e2}")
                 # List available methods for debugging
