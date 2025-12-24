@@ -4,14 +4,45 @@ User Management
 Handles user registration, authentication, and user data.
 """
 import os
+import json
 from typing import Optional, Dict, List
 from datetime import datetime, timedelta
 import uuid
 import secrets
 from .jwt_handler import hash_password, verify_password, create_access_token
 
-# In-memory user storage (future: use database)
-users_db: Dict[str, Dict] = {}
+# Persistent user storage file
+USER_STORAGE_FILE = os.getenv("USER_STORAGE_FILE", os.path.join(os.getcwd(), "users.json"))
+
+def load_users() -> Dict[str, Dict]:
+    """Load users from persistent storage"""
+    if os.path.exists(USER_STORAGE_FILE):
+        try:
+            with open(USER_STORAGE_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                return data if isinstance(data, dict) else {}
+        except Exception as e:
+            print(f"Warning: Could not load users from {USER_STORAGE_FILE}: {e}")
+            return {}
+    return {}
+
+def save_users(users: Dict[str, Dict]) -> bool:
+    """Save users to persistent storage"""
+    try:
+        # Create directory if it doesn't exist
+        storage_dir = os.path.dirname(USER_STORAGE_FILE) if os.path.dirname(USER_STORAGE_FILE) else '.'
+        if storage_dir and not os.path.exists(storage_dir):
+            os.makedirs(storage_dir, exist_ok=True)
+        
+        with open(USER_STORAGE_FILE, 'w', encoding='utf-8') as f:
+            json.dump(users, f, indent=2, ensure_ascii=False)
+        return True
+    except Exception as e:
+        print(f"Error: Could not save users to {USER_STORAGE_FILE}: {e}")
+        return False
+
+# Load users from persistent storage on module import
+users_db: Dict[str, Dict] = load_users()
 
 
 class UserManager:
@@ -209,6 +240,7 @@ class UserManager:
         user_data["password_hash"] = hash_password(new_password)
         user_data["reset_token"] = None
         user_data["reset_token_expiry"] = None
+        save_users(users_db)  # Persist to disk
         return True
     
     def set_admin(self, user_id: str, is_admin: bool) -> bool:
