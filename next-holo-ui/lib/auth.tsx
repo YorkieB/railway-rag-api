@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Load auth state from storage on mount
+  // Load auth state from storage on mount (non-blocking)
   useEffect(() => {
     const initAuth = () => {
       try {
@@ -55,11 +55,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (e) {
         console.error("Error initializing auth:", e);
         clearAuth();
-      } finally {
-        setLoading(false);
       }
+      // Don't block rendering - set loading to false immediately
+      setLoading(false);
     };
 
+    // Initialize immediately without blocking
     initAuth();
   }, []);
 

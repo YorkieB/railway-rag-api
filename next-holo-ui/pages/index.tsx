@@ -247,14 +247,7 @@ export default function Home() {
     }
   };
 
-  // Show loading while checking auth
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-text-secondary">Loading...</div>
-      </div>
-    );
-  }
+  // No authentication required - show page immediately
 
   return (
     <>
