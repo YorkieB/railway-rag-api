@@ -3827,6 +3827,47 @@ async def create_companion_session():
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error creating companion session: {str(e)}")
 
+@app.get("/companion/memories")
+async def get_companion_memories(session_id: str):
+    """
+    Get memory count for a companion session.
+    Returns the number of memories associated with the session.
+    """
+    if session_id not in active_companion_sessions:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Session {session_id} not found"
+        )
+    
+    companion = active_companion_sessions[session_id]
+    
+    try:
+        # Get memory count from the companion's memory manager
+        # MemoryManager might have a count method, or we can get all and count
+        if hasattr(companion.memory, 'get_all_memories'):
+            memories = companion.memory.get_all_memories()
+            count = len(memories) if memories else 0
+        elif hasattr(companion.memory, 'count'):
+            count = companion.memory.count()
+        else:
+            # Fallback: try to access memories directly
+            count = len(getattr(companion.memory, 'memories', []))
+        
+        return {
+            "session_id": session_id,
+            "count": count,
+            "status": "ok"
+        }
+    except Exception as e:
+        print(f"[Companion] Error getting memories for session {session_id}: {e}")
+        # Return 0 if there's an error (non-blocking)
+        return {
+            "session_id": session_id,
+            "count": 0,
+            "status": "error",
+            "message": str(e)
+        }
+
 @app.websocket("/companion/ws/{session_id}")
 async def companion_websocket(websocket: WebSocket, session_id: str):
     """
