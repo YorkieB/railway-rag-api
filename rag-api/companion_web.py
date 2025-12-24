@@ -22,46 +22,62 @@ except ImportError:
     COLORAMA_AVAILABLE = False
 
 # Try to import Deepgram SDK
+# Use a function to import at runtime to avoid module load failures
+def _import_deepgram():
+    """Import Deepgram SDK with fallbacks. Returns (success, DeepgramClient, LiveOptions, LiveTranscriptionEvents)"""
+    global DEEPGRAM_AVAILABLE, DeepgramClient, LiveOptions, LiveTranscriptionEvents
+    
+    # First check if already imported
+    if DEEPGRAM_AVAILABLE and DeepgramClient is not None:
+        return True
+    
+    try:
+        # For deepgram-sdk v3.0+, the import is from 'deepgram'
+        # For v5.x, the import path is the same
+        from deepgram import DeepgramClient, LiveOptions
+        try:
+            from deepgram import LiveTranscriptionEvents
+        except ImportError:
+            # LiveTranscriptionEvents might be in a different location or not available
+            try:
+                from deepgram.clients import LiveTranscriptionEvents
+            except ImportError:
+                try:
+                    from deepgram.clients.listen import LiveTranscriptionEvents
+                except ImportError:
+                    LiveTranscriptionEvents = None
+        DEEPGRAM_AVAILABLE = True
+        print(f"[Companion] Successfully imported DeepgramClient from 'deepgram' (DeepgramClient={DeepgramClient}, type={type(DeepgramClient)})")
+        return True
+    except ImportError as e1:
+        print(f"[Companion] Failed to import from 'deepgram': {e1}")
+        try:
+            # Fallback: try deepgram_sdk (older versions)
+            from deepgram_sdk import DeepgramClient, LiveOptions
+            try:
+                from deepgram_sdk import LiveTranscriptionEvents
+            except ImportError:
+                LiveTranscriptionEvents = None
+            DEEPGRAM_AVAILABLE = True
+            print("[Companion] Successfully imported DeepgramClient from 'deepgram_sdk'")
+            return True
+        except ImportError as e2:
+            print(f"[Companion] Failed to import from 'deepgram_sdk': {e2}")
+            print("[Companion] Deepgram SDK not available. Install with: pip install deepgram-sdk")
+            DEEPGRAM_AVAILABLE = False
+            DeepgramClient = None
+            LiveOptions = None
+            LiveTranscriptionEvents = None
+            return False
+
+# Initialize at module load
 DEEPGRAM_AVAILABLE = False
 DeepgramClient = None
 LiveOptions = None
 LiveTranscriptionEvents = None
 
-try:
-    # For deepgram-sdk v3.0+, the import is from 'deepgram'
-    # For v5.x, the import path is the same
-    from deepgram import DeepgramClient, LiveOptions
-    try:
-        from deepgram import LiveTranscriptionEvents
-    except ImportError:
-        # LiveTranscriptionEvents might be in a different location or not available
-        try:
-            from deepgram.clients import LiveTranscriptionEvents
-        except ImportError:
-            try:
-                from deepgram.clients.listen import LiveTranscriptionEvents
-            except ImportError:
-                LiveTranscriptionEvents = None
-    DEEPGRAM_AVAILABLE = True
-    print(f"[Companion] Successfully imported DeepgramClient from 'deepgram' (DeepgramClient={DeepgramClient}, type={type(DeepgramClient)})")
-except ImportError as e1:
-    print(f"[Companion] Failed to import from 'deepgram': {e1}")
-    try:
-        # Fallback: try deepgram_sdk (older versions)
-        from deepgram_sdk import DeepgramClient, LiveOptions
-        try:
-            from deepgram_sdk import LiveTranscriptionEvents
-        except ImportError:
-            LiveTranscriptionEvents = None
-        DEEPGRAM_AVAILABLE = True
-        print("[Companion] Successfully imported DeepgramClient from 'deepgram_sdk'")
-    except ImportError as e2:
-        print(f"[Companion] Failed to import from 'deepgram_sdk': {e2}")
-        print("[Companion] Deepgram SDK not available. Install with: pip install deepgram-sdk")
-        DEEPGRAM_AVAILABLE = False
-        DeepgramClient = None
-        LiveOptions = None
-        LiveTranscriptionEvents = None
+# Try to import immediately
+_import_deepgram()
 from openai import AsyncOpenAI
 from elevenlabs.client import ElevenLabs
 
@@ -128,8 +144,12 @@ class WebCompanion:
                 raise ValueError("ELEVENLABS_API_KEY environment variable is required")
             
             # Verify DeepgramClient is available (not None)
+            # Try to import again at runtime in case module load failed
             if not DEEPGRAM_AVAILABLE or DeepgramClient is None:
-                raise ValueError(f"DeepgramClient is not available. DEEPGRAM_AVAILABLE={DEEPGRAM_AVAILABLE}, DeepgramClient={DeepgramClient}. Please install deepgram package: pip install deepgram-sdk")
+                print("[WebCompanion] DeepgramClient not available at module load, trying runtime import...")
+                success = _import_deepgram()
+                if not success or DeepgramClient is None:
+                    raise ValueError(f"DeepgramClient is not available. DEEPGRAM_AVAILABLE={DEEPGRAM_AVAILABLE}, DeepgramClient={DeepgramClient}. Please install deepgram package: pip install deepgram-sdk")
             
             print(f"[WebCompanion] Initializing API clients...")
             print(f"[WebCompanion] DeepgramClient type: {type(DeepgramClient)}")
