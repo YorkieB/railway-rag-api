@@ -447,7 +447,16 @@ export function BrowserPanel({ apiBase }: Props) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2 space-y-4">
             <div className="space-y-2">
-              <div className="text-xs text-gray-600">Browser Viewport</div>
+              <div className="flex items-center justify-between">
+                <div className="text-xs text-gray-600">Browser Viewport</div>
+                <button
+                  onClick={refreshPageInfo}
+                  className="text-xs text-primary hover:text-primary/80"
+                  type="button"
+                >
+                  Refresh Info
+                </button>
+              </div>
               <div className="rounded-lg overflow-hidden border border-gray-200 bg-gray-100">
                 {screenshot ? (
                   <img
@@ -459,6 +468,35 @@ export function BrowserPanel({ apiBase }: Props) {
                   <div className="p-8 text-center text-gray-500">Loading screenshot...</div>
                 )}
               </div>
+              {pageInfo && (
+                <div className="space-y-2 text-xs p-3 bg-gray-50 rounded border border-gray-200">
+                  <div className="font-semibold text-gray-700">Page Info</div>
+                  <div className="text-gray-600 space-y-1">
+                    <div><span className="font-medium">URL:</span> <span className="break-all">{pageInfo.url}</span></div>
+                    <div><span className="font-medium">Title:</span> {pageInfo.title}</div>
+                    {pageInfo.inputs && pageInfo.inputs.length > 0 && (
+                      <div className="mt-2">
+                        <div className="font-medium text-gray-700 mb-1">Input Fields ({pageInfo.inputs.length}):</div>
+                        {pageInfo.inputs.map((input: any, idx: number) => (
+                          <div key={idx} className="text-gray-600 ml-2 text-xs">
+                            • {input.type} {input.id ? `#${input.id}` : ''} {input.name ? `name="${input.name}"` : ''} {input.placeholder ? `(${input.placeholder})` : ''}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {pageInfo.buttons && pageInfo.buttons.length > 0 && (
+                      <div className="mt-2">
+                        <div className="font-medium text-gray-700 mb-1">Buttons ({pageInfo.buttons.length}):</div>
+                        {pageInfo.buttons.map((btn: any, idx: number) => (
+                          <div key={idx} className="text-gray-600 ml-2 text-xs">
+                            • {btn.text || btn.type} {btn.id ? `#${btn.id}` : ''}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
