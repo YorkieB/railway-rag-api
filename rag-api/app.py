@@ -3701,6 +3701,25 @@ async def check_companion_keys():
     # Debug: Get all environment variable names (to see what Railway provides)
     all_env_keys = sorted([k for k in os.environ.keys() if "API" in k.upper() or "KEY" in k.upper()])
     
+    # Check if deepgram package is installed
+    deepgram_package_installed = False
+    deepgram_import_error = None
+    try:
+        import deepgram
+        deepgram_package_installed = True
+        deepgram_version = getattr(deepgram, '__version__', 'unknown')
+    except ImportError as e:
+        deepgram_import_error = str(e)
+        deepgram_version = None
+    
+    # Also check deepgram_sdk
+    deepgram_sdk_installed = False
+    try:
+        import deepgram_sdk
+        deepgram_sdk_installed = True
+    except ImportError:
+        pass
+    
     keys_status = {
         "DEEPGRAM_API_KEY": "set" if dg_key else "missing",
         "ELEVENLABS_API_KEY": "set" if eleven_key else "missing",
@@ -3723,6 +3742,15 @@ async def check_companion_keys():
         "dg_key_length": len(dg_key) if dg_key else 0,
         "eleven_key_length": len(eleven_key) if eleven_key else 0,
         "openai_key_length": len(openai_key) if openai_key else 0,
+        "deepgram_package": {
+            "installed": deepgram_package_installed,
+            "version": deepgram_version,
+            "import_error": deepgram_import_error,
+        },
+        "deepgram_sdk_package": {
+            "installed": deepgram_sdk_installed,
+        },
+        "companion_module_available": COMPANION_AVAILABLE,
     }
     
     all_set = all(status == "set" for status in keys_status.values())

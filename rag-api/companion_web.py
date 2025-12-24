@@ -21,23 +21,39 @@ except ImportError:
         RESET_ALL = ""
     COLORAMA_AVAILABLE = False
 
+# Try to import Deepgram SDK
+DEEPGRAM_AVAILABLE = False
+DeepgramClient = None
+LiveOptions = None
+LiveTranscriptionEvents = None
+
 try:
+    # For deepgram-sdk v3.0+, the import is from 'deepgram'
     from deepgram import DeepgramClient, LiveOptions
     try:
         from deepgram import LiveTranscriptionEvents
     except ImportError:
-        # LiveTranscriptionEvents might be in a different location
-        LiveTranscriptionEvents = None
+        # LiveTranscriptionEvents might be in a different location or not available
+        try:
+            from deepgram.clients import LiveTranscriptionEvents
+        except ImportError:
+            LiveTranscriptionEvents = None
     DEEPGRAM_AVAILABLE = True
-except ImportError:
+    print("[Companion] Successfully imported DeepgramClient from 'deepgram'")
+except ImportError as e1:
+    print(f"[Companion] Failed to import from 'deepgram': {e1}")
     try:
+        # Fallback: try deepgram_sdk (older versions)
         from deepgram_sdk import DeepgramClient, LiveOptions
         try:
             from deepgram_sdk import LiveTranscriptionEvents
         except ImportError:
             LiveTranscriptionEvents = None
         DEEPGRAM_AVAILABLE = True
-    except ImportError:
+        print("[Companion] Successfully imported DeepgramClient from 'deepgram_sdk'")
+    except ImportError as e2:
+        print(f"[Companion] Failed to import from 'deepgram_sdk': {e2}")
+        print("[Companion] Deepgram SDK not available. Install with: pip install deepgram-sdk")
         DEEPGRAM_AVAILABLE = False
         DeepgramClient = None
         LiveOptions = None
