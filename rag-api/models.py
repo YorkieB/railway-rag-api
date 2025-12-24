@@ -226,17 +226,6 @@ class SmartPlaylistRequest(BaseModel):
     exclude_genres: Optional[List[str]] = None
 
 
-class UserRegisterRequest(BaseModel):
-    """Request model for user registration"""
-    email: str
-    password: str
-    username: Optional[str] = None
-
-
-class UserLoginRequest(BaseModel):
-    """Request model for user login"""
-    email: str
-    password: str
 
 
 class ForgotPasswordRequest(BaseModel):
