@@ -43,11 +43,21 @@ def _import_deepgram():
     
     try:
         # For deepgram-sdk v3.0+, the import is from 'deepgram'
-        # For v5.x, the import path is the same
-        print("[_import_deepgram] Trying: from deepgram import DeepgramClient, LiveOptions")
-        from deepgram import DeepgramClient, LiveOptions
+        # For v5.x, LiveOptions may not be available - import only DeepgramClient
+        print("[_import_deepgram] Trying: from deepgram import DeepgramClient")
+        from deepgram import DeepgramClient
         print(f"[_import_deepgram] Successfully imported DeepgramClient: {DeepgramClient}, type: {type(DeepgramClient)}")
         
+        # Try to import LiveOptions (may not exist in v5.x)
+        try:
+            from deepgram import LiveOptions
+            print("[_import_deepgram] Successfully imported LiveOptions from deepgram")
+        except ImportError:
+            # LiveOptions doesn't exist in v5.x - we'll use dict instead
+            print("[_import_deepgram] LiveOptions not available in this version (v5.x), will use dict for options")
+            LiveOptions = None
+        
+        # Try to import LiveTranscriptionEvents
         try:
             from deepgram import LiveTranscriptionEvents
             print("[_import_deepgram] Successfully imported LiveTranscriptionEvents from deepgram")
@@ -65,7 +75,7 @@ def _import_deepgram():
                     LiveTranscriptionEvents = None
         
         DEEPGRAM_AVAILABLE = True
-        print(f"[_import_deepgram] SUCCESS: DEEPGRAM_AVAILABLE=True, DeepgramClient={DeepgramClient}")
+        print(f"[_import_deepgram] SUCCESS: DEEPGRAM_AVAILABLE=True, DeepgramClient={DeepgramClient}, LiveOptions={LiveOptions}")
         return True
     except ImportError as e1:
         print(f"[_import_deepgram] Failed to import from 'deepgram': {type(e1).__name__}: {e1}")
@@ -233,17 +243,33 @@ class WebCompanion:
     
     async def initialize_deepgram(self):
         """Initialize Deepgram Live connection."""
-        options = LiveOptions(
-            model=DG_MODEL,
-            language="en-US",
-            smart_format=True,
-            encoding="linear16",
-            channels=1,
-            sample_rate=16000,
-            interim_results=True,
-            utterance_end_ms=DG_UTTERANCE_END_MS,
-            vad_events=True
-        )
+        # In Deepgram SDK v5.x, LiveOptions may not exist - use dict instead
+        if LiveOptions is not None:
+            # Use LiveOptions if available (older versions)
+            options = LiveOptions(
+                model=DG_MODEL,
+                language="en-US",
+                smart_format=True,
+                encoding="linear16",
+                channels=1,
+                sample_rate=16000,
+                interim_results=True,
+                utterance_end_ms=DG_UTTERANCE_END_MS,
+                vad_events=True
+            )
+        else:
+            # Use dict for v5.x (LiveOptions doesn't exist)
+            options = {
+                "model": DG_MODEL,
+                "language": "en-US",
+                "smart_format": True,
+                "encoding": "linear16",
+                "channels": 1,
+                "sample_rate": 16000,
+                "interim_results": True,
+                "utterance_end_ms": int(DG_UTTERANCE_END_MS),
+                "vad_events": True
+            }
         
         self.dg_connection = self.dg_client.listen.live.v("1")
         
