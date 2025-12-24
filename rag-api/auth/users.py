@@ -71,6 +71,7 @@ class UserManager:
         }
         
         users_db[user_id] = user_data
+        save_users(users_db)  # Persist to disk
         
         return {
             "user_id": user_id,
@@ -180,6 +181,7 @@ class UserManager:
         
         user_data["reset_token"] = reset_token
         user_data["reset_token_expiry"] = reset_token_expiry.isoformat()
+        save_users(users_db)  # Persist to disk
         
         return reset_token
     
@@ -216,6 +218,7 @@ class UserManager:
             return False
         
         user_data["is_admin"] = is_admin
+        save_users(users_db)  # Persist to disk
         return True
     
     def update_user(self, user_id: str, email: Optional[str] = None, username: Optional[str] = None) -> bool:
@@ -235,12 +238,14 @@ class UserManager:
         if username:
             user_data["username"] = username
         
+        save_users(users_db)  # Persist to disk
         return True
     
     def delete_user(self, user_id: str) -> bool:
         """Delete user"""
         if user_id in users_db:
             del users_db[user_id]
+            save_users(users_db)  # Persist to disk
             return True
         return False
     
