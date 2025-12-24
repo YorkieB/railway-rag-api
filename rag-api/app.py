@@ -3687,6 +3687,27 @@ async def list_custom_voices(user_id: str = "default"):
         raise HTTPException(status_code=500, detail=f"Failed to list custom voices: {str(e)}")
 
 # Companion API endpoints (integrated into rag-api)
+@app.get("/companion/check-keys")
+async def check_companion_keys():
+    """
+    Diagnostic endpoint to check if companion API keys are set.
+    Returns which keys are present/missing (without exposing values).
+    """
+    keys_status = {
+        "DEEPGRAM_API_KEY": "set" if os.getenv("DEEPGRAM_API_KEY") else "missing",
+        "ELEVENLABS_API_KEY": "set" if os.getenv("ELEVENLABS_API_KEY") else "missing",
+        "OPENAI_API_KEY": "set" if os.getenv("OPENAI_API_KEY") else "missing",
+    }
+    
+    all_set = all(status == "set" for status in keys_status.values())
+    
+    return {
+        "status": "ok" if all_set else "missing_keys",
+        "keys": keys_status,
+        "companion_available": COMPANION_AVAILABLE,
+        "message": "All keys set" if all_set else f"Missing keys: {', '.join([k for k, v in keys_status.items() if v == 'missing'])}"
+    }
+
 @app.post("/companion/session/create")
 async def create_companion_session():
     """
@@ -3711,7 +3732,7 @@ async def create_companion_session():
     if missing_keys:
         raise HTTPException(
             status_code=400,
-            detail=f"Missing required API keys: {', '.join(missing_keys)}. Please add these environment variables to your Railway deployment."
+            detail=f"Missing required API keys: {', '.join(missing_keys)}. Please add these environment variables to your Railway deployment. Check /companion/check-keys endpoint to verify which keys are set."
         )
     
     try:
