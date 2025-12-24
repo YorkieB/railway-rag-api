@@ -197,10 +197,48 @@ class WebCompanion:
             print(f"[WebCompanion] DEEPGRAM_AVAILABLE: {DEEPGRAM_AVAILABLE}")
             
             try:
-                self.dg_client = DeepgramClient(dg_key)
-                print(f"[WebCompanion] DeepgramClient initialized successfully")
+                # Deepgram SDK v5.x changed initialization - no positional args
+                print(f"[WebCompanion] Attempting to initialize DeepgramClient with key length: {len(dg_key) if dg_key else 0}")
+                
+                # Pattern 1: v5.x - set env var and use no-arg constructor
+                # This is the recommended pattern for v5.x
+                original_env = os.environ.get("DEEPGRAM_API_KEY")
+                os.environ["DEEPGRAM_API_KEY"] = dg_key
+                try:
+                    self.dg_client = DeepgramClient()
+                    print(f"[WebCompanion] DeepgramClient initialized without args (v5.x pattern - using env var)")
+                except Exception as e1:
+                    print(f"[WebCompanion] Pattern 1 failed (no-arg constructor): {e1}")
+                    # Pattern 2: Try api_key keyword argument
+                    try:
+                        self.dg_client = DeepgramClient(api_key=dg_key)
+                        print(f"[WebCompanion] DeepgramClient initialized with api_key keyword (v5.x alternative)")
+                    except TypeError as e2:
+                        print(f"[WebCompanion] Pattern 2 failed (api_key=): {e2}")
+                        # Pattern 3: Try with config dict
+                        try:
+                            self.dg_client = DeepgramClient(config={"api_key": dg_key})
+                            print(f"[WebCompanion] DeepgramClient initialized with config dict")
+                        except (TypeError, ValueError) as e3:
+                            print(f"[WebCompanion] Pattern 3 failed (config dict): {e3}")
+                            # Pattern 4: Try positional (older versions) - should not work in v5.x
+                            try:
+                                self.dg_client = DeepgramClient(dg_key)
+                                print(f"[WebCompanion] DeepgramClient initialized with positional (v3.x pattern)")
+                            except TypeError as e4:
+                                print(f"[WebCompanion] All patterns failed. Last error: {e4}")
+                                raise ValueError(f"Cannot initialize DeepgramClient with any known pattern. Errors: {e1}, {e2}, {e3}, {e4}")
+                finally:
+                    # Restore original env var if it existed (but keep it if we successfully used it)
+                    if original_env is not None and hasattr(self, 'dg_client') and self.dg_client is None:
+                        os.environ["DEEPGRAM_API_KEY"] = original_env
+                    # If initialization succeeded, keep the env var set for the client
+                
+                print(f"[WebCompanion] DeepgramClient initialized successfully: {type(self.dg_client)}")
             except Exception as e:
-                print(f"[WebCompanion] Error initializing DeepgramClient: {e}")
+                print(f"[WebCompanion] Error initializing DeepgramClient: {type(e).__name__}: {e}")
+                import traceback
+                traceback.print_exc()
                 raise ValueError(f"Failed to initialize DeepgramClient: {e}")
             
             try:
