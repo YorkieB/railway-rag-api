@@ -1,14 +1,17 @@
 import { useEffect } from "react";
-import { useRouter } from "next/router";
 
 export default function Login() {
-  const router = useRouter();
-  
   useEffect(() => {
-    // Redirect to home page immediately
-    router.replace("/");
-  }, [router]);
+    // Redirect to home page immediately using window.location for immediate effect
+    if (typeof window !== "undefined") {
+      window.location.replace("/");
+    }
+  }, []);
 
-  return null;
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh" }}>
+      <p>Redirecting to home page...</p>
+    </div>
+  );
 }
 
