@@ -51,7 +51,7 @@ export function CompanionVoice({ apiBase: companionApiBase, jarvisEnabled = fals
         diagnostics.logHealthCheck("companion-api", "ok", { url: apiBase });
       } catch (healthErr) {
         // Health check failed, but try to proceed anyway (might be a CORS issue)
-        diagnostics.warn("companion", `Health check failed, but proceeding: ${healthErr instanceof Error ? healthErr.message : String(healthErr)}`);
+        diagnostics.info("companion", `Health check failed, but proceeding: ${healthErr instanceof Error ? healthErr.message : String(healthErr)}`);
       }
       
       const companionClient = new CompanionClient(apiBase);
