@@ -4,6 +4,7 @@ BrowserSession: Manages Playwright browser instances and sessions.
 from playwright.async_api import async_playwright, Browser, BrowserContext, Page
 from typing import Optional, Dict
 import uuid
+import re
 
 
 class BrowserSession:
@@ -29,25 +30,54 @@ class BrowserSession:
         )
         self.page = await self.context.new_page()
     
+    def _normalize_url(self, url: str) -> str:
+        """
+        Normalize URL to ensure it's valid for navigation.
+        
+        Args:
+            url: Raw URL input
+            
+        Returns:
+            Normalized URL with protocol
+        """
+        url = url.strip()
+        
+        # If it already has a protocol, return as-is
+        if re.match(r'^https?://', url, re.IGNORECASE):
+            return url
+        
+        # If it looks like a domain (has dots and no spaces), add https://
+        if re.match(r'^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]*\.[a-zA-Z]{2,}', url):
+            return f"https://{url}"
+        
+        # Otherwise, treat as a search query and use Google search
+        from urllib.parse import quote
+        return f"https://www.google.com/search?q={quote(url)}"
+    
     async def navigate(self, url: str) -> Dict:
         """
         Navigate to URL.
         
         Args:
-            url: URL to navigate to
+            url: URL to navigate to (will be normalized if needed)
             
         Returns:
             Dict with success status and page info
         """
         try:
-            await self.page.goto(url, wait_until="networkidle", timeout=30000)
+            # Normalize URL before navigation
+            normalized_url = self._normalize_url(url)
+            
+            await self.page.goto(normalized_url, wait_until="networkidle", timeout=30000)
             self.current_url = self.page.url
             title = await self.page.title()
             
             return {
                 "success": True,
                 "url": self.current_url,
-                "title": title
+                "title": title,
+                "original_url": url,
+                "normalized_url": normalized_url
             }
         except Exception as e:
             return {

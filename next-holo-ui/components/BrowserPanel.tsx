@@ -113,10 +113,30 @@ export function BrowserPanel({ apiBase }: Props) {
     }
   };
 
+  const normalizeUrl = (input: string): string => {
+    // Remove whitespace
+    input = input.trim();
+    
+    // If it already has a protocol, return as-is
+    if (/^https?:\/\//i.test(input)) {
+      return input;
+    }
+    
+    // If it looks like a domain (has dots and no spaces), add https://
+    if (/^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]*\.[a-zA-Z]{2,}/.test(input)) {
+      return `https://${input}`;
+    }
+    
+    // Otherwise, treat as a search query and use Google search
+    return `https://www.google.com/search?q=${encodeURIComponent(input)}`;
+  };
+
   const navigate = async () => {
     if (!sessionId || !navigateUrlRef.current?.value) return;
     
-    const url = navigateUrlRef.current.value;
+    const rawUrl = navigateUrlRef.current.value;
+    const url = normalizeUrl(rawUrl);
+    
     try {
       const response = await fetch(`${apiBase}/browser/sessions/${sessionId}/navigate?url=${encodeURIComponent(url)}`, {
         method: "POST"
