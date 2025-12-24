@@ -23,10 +23,13 @@ export function IntegrationsPanel({ apiBase, token }: Props) {
       const data = await listSpotifyPlaylists(apiBase, "default");
       if (data && data.playlists) {
         setSpotifyConnected(true);
-        setPlaylists(data.playlists);
+        setPlaylists(data.playlists || []);
+      } else {
+        setSpotifyConnected(false);
       }
     } catch (error: any) {
       setSpotifyConnected(false);
+      setPlaylists([]);
       // Don't show error - just means not connected
     } finally {
       setLoadingPlaylists(false);
@@ -42,14 +45,22 @@ export function IntegrationsPanel({ apiBase, token }: Props) {
         // Open Spotify OAuth in new window
         window.open(response.auth_url, "spotify-auth", "width=500,height=600");
         // Poll for connection status
+        let pollCount = 0;
         const checkInterval = setInterval(async () => {
+          pollCount++;
           try {
             await checkSpotifyConnection();
-            if (spotifyConnected) {
+            // Check if connected after refresh
+            const data = await listSpotifyPlaylists(apiBase, "default");
+            if (data && data.playlists) {
               clearInterval(checkInterval);
             }
           } catch (e) {
             // Continue polling
+          }
+          // Stop after 30 attempts (60 seconds)
+          if (pollCount >= 30) {
+            clearInterval(checkInterval);
           }
         }, 2000);
         
