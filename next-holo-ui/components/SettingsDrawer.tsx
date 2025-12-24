@@ -4,7 +4,6 @@ import { DiagnosticsPanel } from "@/components/DiagnosticsPanel";
 import { UserManagement } from "@/components/UserManagement";
 import { IntegrationsPanel } from "@/components/IntegrationsPanel";
 import { JarvisCustomization } from "@/components/JarvisCustomization";
-import { useAuth } from "@/lib/auth";
 
 type Props = {
   open: boolean;
@@ -43,7 +42,9 @@ export function SettingsDrawer({
   jarvisEnabled,
   onJarvisEnabledChange
 }: Props) {
-  const { isAdmin, token } = useAuth();
+  // Authentication removed - all features accessible
+  const isAdmin = true; // All users have admin access
+  const token = null; // No token needed
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<"settings" | "diagnostics" | "users" | "integrations" | "jarvis">("settings");
 

@@ -25,7 +25,6 @@ import { SpotifyPanel } from "@/components/SpotifyPanel";
 import { AudioLiveSession } from "@/components/AudioLiveSession";
 import { VideoLiveSession } from "@/components/VideoLiveSession";
 import { Sidebar, type PanelId } from "@/components/Sidebar";
-import { useAuth } from "@/lib/auth";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { apiBaseFromEnv, companionApiBaseFromEnv, queryApi, uploadDocument, speakWithElevenLabs } from "@/lib/api";
 import { diagnostics } from "@/lib/diagnostics";
@@ -35,7 +34,7 @@ const defaultApi = apiBaseFromEnv();
 const defaultVoice = "6twLzp3s6IkvvMSxk3oD";
 
 export default function Home() {
-  const { user, isAuthenticated, logout, loading: authLoading } = useAuth();
+  // Authentication removed - app is publicly accessible
   const [apiBaseStored, setApiBaseStored, apiReady] = useLocalStorage("holo-api-base", defaultApi);
   const [geminiKey, setGeminiKey] = useLocalStorage("holo-gemini-key", "");
   const [elevenKey, setElevenKey] = useLocalStorage("holo-eleven-key", "");
@@ -261,7 +260,7 @@ export default function Home() {
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 space-y-6">
             <Hero onGenerate={scrollToChat} statusText={statusText} />
-            <StatusBar apiBase={apiBase} backendStatus={backendStatus} user={user} onLogout={logout} />
+            <StatusBar apiBase={apiBase} backendStatus={backendStatus} />
             {renderActivePanel()}
           </div>
         </main>
