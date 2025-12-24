@@ -1939,6 +1939,42 @@ async def browser_find_login_fields(session_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error finding login fields: {str(e)}")
 
+# Authentication endpoints (public registration for first user)
+
+@app.post("/auth/register")
+async def register_user(request: UserRegisterRequest):
+    """
+    Register a new user. 
+    First user automatically becomes admin.
+    """
+    try:
+        result = user_manager.create_user(
+            email=request.email,
+            password=request.password,
+            username=request.username
+        )
+        return {
+            "status": "success",
+            "message": "User created successfully",
+            "user": result
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/auth/login")
+async def login_user(request: UserLoginRequest):
+    """
+    Login user and get access token.
+    """
+    try:
+        result = user_manager.authenticate_user(request.email, request.password)
+        if not result:
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
 
 # PDF Export APIs
 
