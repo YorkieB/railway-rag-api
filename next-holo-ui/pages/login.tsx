@@ -1,52 +1,70 @@
-import { useState, FormEvent } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/router";
-import { useAuth } from "@/lib/auth";
 import Head from "next/head";
 
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "https://api.jarvisb.app";
+
 export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const rememberMeRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
   const router = useRouter();
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
+    const email = emailRef.current?.value || "";
+    const password = passwordRef.current?.value || "";
+    const rememberMe = rememberMeRef.current?.checked || false;
+
+    if (!email || !password) {
+      setError("Please enter both email and password");
+      setLoading(false);
+      return;
+    }
+
     try {
-      // Get values from form inputs directly (in case browser automation bypasses React state)
-      const form = e.currentTarget as HTMLFormElement;
-      const emailInput = form.querySelector<HTMLInputElement>('input[type="email"]');
-      const passwordInput = form.querySelector<HTMLInputElement>('input[type="password"]');
-      const rememberMeCheckbox = form.querySelector<HTMLInputElement>('input[type="checkbox"]');
+      console.log("Login attempt:", { email, apiBase: API_BASE });
       
-      const actualEmail = emailInput?.value || email;
-      const actualPassword = passwordInput?.value || password;
-      const actualRememberMe = rememberMeCheckbox?.checked || rememberMe;
+      const response = await fetch(`${API_BASE}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      console.log("Response status:", response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: `HTTP ${response.status}` }));
+        throw new Error(errorData.detail || "Login failed");
+      }
+
+      const data = await response.json();
+      console.log("Login success, received data:", { ...data, access_token: data.access_token ? "***" : "missing" });
+
+      if (!data.access_token) {
+        throw new Error("No access token received");
+      }
+
+      // Store auth data
+      const storage = rememberMe ? localStorage : sessionStorage;
+      storage.setItem("auth_token", data.access_token);
+      storage.setItem("auth_user", JSON.stringify(data.user));
+      localStorage.setItem("auth_remember_me", rememberMe ? "true" : "false");
+
+      console.log("Auth data stored, redirecting...");
       
-      // Update state if values differ (for controlled components)
-      if (actualEmail !== email) setEmail(actualEmail);
-      if (actualPassword !== password) setPassword(actualPassword);
-      if (actualRememberMe !== rememberMe) setRememberMe(actualRememberMe);
-      
-      console.log("Attempting login with email:", actualEmail);
-      await login(actualEmail, actualPassword, actualRememberMe);
-      console.log("Login successful, redirecting...");
-      // Redirect to home page after successful login
-      router.push("/");
+      // Redirect to home
+      window.location.href = "/";
     } catch (err: any) {
       console.error("Login error:", err);
-      const errorMessage = err.message || "Login failed. Please check your credentials.";
-      setError(errorMessage);
-      console.error("Error details:", {
-        message: err.message,
-        stack: err.stack,
-        response: err.response
-      });
+      setError(err.message || "Login failed. Please check your credentials.");
     } finally {
       setLoading(false);
     }
@@ -74,12 +92,13 @@ export default function Login() {
                 Email
               </label>
               <input
+                ref={emailRef}
                 id="email"
+                name="email"
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                autoComplete="email"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                 placeholder="you@example.com"
               />
             </div>
@@ -89,26 +108,26 @@ export default function Login() {
                 Password
               </label>
               <input
+                ref={passwordRef}
                 id="password"
+                name="password"
                 type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                autoComplete="current-password"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
               />
             </div>
 
             <div className="flex items-center justify-between">
               <label className="flex items-center">
                 <input
+                  ref={rememberMeRef}
                   type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
                   className="mr-2"
                 />
                 <span className="text-sm text-gray-700">Remember me</span>
               </label>
-              <a href="/forgot-password" className="text-sm text-primary hover:underline">
+              <a href="/forgot-password" className="text-sm text-blue-600 hover:underline">
                 Forgot password?
               </a>
             </div>
@@ -116,7 +135,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-primary text-white py-2.5 px-4 rounded-lg font-medium hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full bg-blue-600 text-white py-2.5 px-4 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {loading ? "Signing in..." : "Sign in"}
             </button>
@@ -126,4 +145,3 @@ export default function Login() {
     </>
   );
 }
-
