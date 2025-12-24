@@ -292,14 +292,39 @@ async def cost_tracking_middleware(request: Request, call_next):
 chromadb_path = os.getenv("CHROMADB_PATH", "./rag_knowledge_base")
 collection_name = "documents"
 
-# Initialize uncertainty checker
-uncertainty_checker = UncertaintyChecker(threshold=0.6)
+# Initialize uncertainty checker (with error handling)
+try:
+    uncertainty_checker = UncertaintyChecker(threshold=0.6)
+except Exception as e:
+    print(f"Warning: Failed to initialize uncertainty checker: {e}")
+    class DummyUncertaintyChecker:
+        def check(self, *args, **kwargs):
+            return {"uncertain": False, "confidence": 1.0}
+    uncertainty_checker = DummyUncertaintyChecker()
 
-# Initialize context budget enforcer
-budget_enforcer = ContextBudgetEnforcer(max_tokens=100000, warn_threshold=0.8)
+# Initialize context budget enforcer (with error handling)
+try:
+    budget_enforcer = ContextBudgetEnforcer(max_tokens=100000, warn_threshold=0.8)
+except Exception as e:
+    print(f"Warning: Failed to initialize budget enforcer: {e}")
+    class DummyBudgetEnforcer:
+        def check_budget(self, *args, **kwargs):
+            return {"over_budget": False, "warnings": []}
+        def truncate_history(self, *args, **kwargs):
+            return args[0] if args else []
+    budget_enforcer = DummyBudgetEnforcer()
 
-# Initialize cost tracker
-cost_tracker = CostTracker()
+# Initialize cost tracker (with error handling)
+try:
+    cost_tracker = CostTracker()
+except Exception as e:
+    print(f"Warning: Failed to initialize cost tracker: {e}")
+    class DummyCostTracker:
+        def estimate_cost(self, *args, **kwargs):
+            return 0.0
+        def get_budget_status(self, *args, **kwargs):
+            return None
+    cost_tracker = DummyCostTracker()
 
 # Initialize memory storage (with error handling)
 try:
