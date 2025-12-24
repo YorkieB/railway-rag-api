@@ -1790,6 +1790,78 @@ async def browser_plan_execute(session_id: str, user_intent: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error executing plan: {str(e)}")
 
+@app.post("/browser/sessions/{session_id}/actions/login")
+async def browser_login(
+    session_id: str,
+    username: str,
+    password: str,
+    url: Optional[str] = None
+):
+    """
+    Automate login flow: navigate to login page (if URL provided), 
+    find and fill login fields, and submit.
+    
+    Args:
+        session_id: Browser session ID
+        username: Username or email
+        password: Password
+        url: Optional URL to navigate to first (if not already on login page)
+    """
+    if session_id not in active_browser_sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    browser_session = active_browser_sessions[session_id]
+    if not browser_session.is_active():
+        raise HTTPException(status_code=400, detail="Browser session not active")
+    
+    try:
+        from browser.login_helper import LoginHelper
+        
+        login_helper = LoginHelper(browser_session.page)
+        
+        # Navigate to URL if provided
+        if url:
+            nav_result = await browser_session.navigate(url)
+            if not nav_result.get("success"):
+                return {
+                    "success": False,
+                    "error": f"Failed to navigate to {url}",
+                    "navigation_error": nav_result.get("error")
+                }
+        
+        # Complete login flow
+        result = await login_helper.complete_login(username, password)
+        
+        # Refresh screenshot and AX tree after login
+        await browser_session.page.wait_for_timeout(1000)
+        
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error during login: {str(e)}")
+
+@app.post("/browser/sessions/{session_id}/actions/login/find-fields")
+async def browser_find_login_fields(session_id: str):
+    """
+    Find login fields on the current page without filling them.
+    Useful for checking if login form is present.
+    """
+    if session_id not in active_browser_sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    browser_session = active_browser_sessions[session_id]
+    if not browser_session.is_active():
+        raise HTTPException(status_code=400, detail="Browser session not active")
+    
+    try:
+        from browser.login_helper import LoginHelper
+        
+        login_helper = LoginHelper(browser_session.page)
+        fields = await login_helper.find_login_fields()
+        
+        return fields
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error finding login fields: {str(e)}")
+
 
 # PDF Export APIs
 

@@ -39,6 +39,9 @@ export function BrowserPanel({ apiBase }: Props) {
   const typeRoleRef = useRef<HTMLInputElement>(null);
   const typeNameRef = useRef<HTMLInputElement>(null);
   const typeTextRef = useRef<HTMLInputElement>(null);
+  const loginUrlRef = useRef<HTMLInputElement>(null);
+  const loginUsernameRef = useRef<HTMLInputElement>(null);
+  const loginPasswordRef = useRef<HTMLInputElement>(null);
 
   const statusChip = {
     idle: { label: "Idle", color: "bg-gray-400" },
@@ -271,6 +274,78 @@ export function BrowserPanel({ apiBase }: Props) {
     }
   };
 
+  const automateLogin = async () => {
+    if (!sessionId || !loginUsernameRef.current?.value || !loginPasswordRef.current?.value) {
+      setSafetyWarnings(prev => [...prev, "Username and password are required"]);
+      return;
+    }
+    
+    const username = loginUsernameRef.current.value;
+    const password = loginPasswordRef.current.value;
+    const url = loginUrlRef.current?.value || undefined;
+    
+    try {
+      const body: any = { username, password };
+      if (url) body.url = url;
+      
+      const response = await fetch(`${apiBase}/browser/sessions/${sessionId}/actions/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      
+      const data = await response.json();
+      
+      setActionHistory(prev => [...prev, {
+        id: Math.random().toString(36).slice(2),
+        timestamp: Date.now(),
+        action: `Login${url ? ` to ${url}` : ""}`,
+        result: data
+      }]);
+      
+      if (data.success) {
+        await refreshScreenshot();
+        await refreshAxTree();
+        // Clear password field for security
+        if (loginPasswordRef.current) loginPasswordRef.current.value = "";
+      } else {
+        setSafetyWarnings(prev => [...prev, data.error || "Login failed"]);
+      }
+    } catch (err: any) {
+      console.error("Error during login:", err);
+      setStatus("error");
+    }
+  };
+
+  const findLoginFields = async () => {
+    if (!sessionId) return;
+    
+    try {
+      const response = await fetch(`${apiBase}/browser/sessions/${sessionId}/actions/login/find-fields`, {
+        method: "POST"
+      });
+      
+      const data = await response.json();
+      
+      if (data.found) {
+        setActionHistory(prev => [...prev, {
+          id: Math.random().toString(36).slice(2),
+          timestamp: Date.now(),
+          action: "Find login fields",
+          result: { 
+            found: true,
+            username_field: data.username_field?.name || "Found",
+            password_field: data.password_field?.name || "Found"
+          }
+        }]);
+      } else {
+        setUncertaintyMessages(prev => [...prev, "Could not find login fields on this page"]);
+      }
+    } catch (err: any) {
+      console.error("Error finding login fields:", err);
+    }
+  };
+
   useEffect(() => {
     if (status === "active" && sessionId) {
       const interval = setInterval(() => {
@@ -436,6 +511,44 @@ export function BrowserPanel({ apiBase }: Props) {
                 >
                   Type
                 </button>
+              </div>
+
+              <div className="space-y-2 border-t border-gray-200 pt-4">
+                <div className="text-xs text-gray-600 font-semibold">🔐 Login Automation</div>
+                <input
+                  ref={loginUrlRef}
+                  type="text"
+                  placeholder="Login URL (optional if already on page)"
+                  className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 placeholder-gray-400 mb-2 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+                <input
+                  ref={loginUsernameRef}
+                  type="text"
+                  placeholder="Username or Email"
+                  className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 placeholder-gray-400 mb-2 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+                <input
+                  ref={loginPasswordRef}
+                  type="password"
+                  placeholder="Password"
+                  className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 placeholder-gray-400 mb-2 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={findLoginFields}
+                    className="flex-1 btn-secondary text-sm"
+                    type="button"
+                  >
+                    Find Fields
+                  </button>
+                  <button
+                    onClick={automateLogin}
+                    className="flex-1 btn-primary text-sm"
+                    type="button"
+                  >
+                    Sign In
+                  </button>
+                </div>
               </div>
             </div>
           </div>
