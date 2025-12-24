@@ -310,39 +310,42 @@ class WebCompanion:
             }
         
         # In Deepgram SDK v5.x, the API structure is: listen.v1 or listen.v2
-        # Then use .connect() method with options
+        # Then use .connect() method - options are passed as keyword arguments, not a dict
         print(f"[WebCompanion] Creating Deepgram connection using listen.v1 API")
         try:
             # Access v1 API directly
             listen_v1 = self.dg_client.listen.v1
             print(f"[WebCompanion] Successfully accessed listen.v1: {type(listen_v1)}")
             
-            # Create connection using connect() method with options
-            # In v5.x, connect() is a context manager, but we can also use it directly
-            # The options dict is passed to connect()
-            print(f"[WebCompanion] Calling connect() with options: {options}")
-            self.dg_connection = listen_v1.connect(options)
-            print(f"[WebCompanion] Successfully created Deepgram connection using listen.v1.connect()")
+            # In v5.x, connect() takes keyword arguments, not a dict
+            # Unpack the options dict as keyword arguments
+            print(f"[WebCompanion] Calling connect() with options as keyword arguments: {options}")
+            self.dg_connection = listen_v1.connect(**options)
+            print(f"[WebCompanion] Successfully created Deepgram connection using listen.v1.connect(**options)")
+        except TypeError as e:
+            print(f"[WebCompanion] TypeError with connect(**options): {e}")
+            # Try without options - maybe connect() doesn't take options and we configure separately
+            try:
+                print(f"[WebCompanion] Trying connect() without options")
+                self.dg_connection = listen_v1.connect()
+                print(f"[WebCompanion] Successfully created connection, will configure separately")
+            except Exception as e2:
+                print(f"[WebCompanion] connect() without options also failed: {e2}")
+                # Try using media() method instead
+                try:
+                    print(f"[WebCompanion] Trying listen.v1.media() method")
+                    if hasattr(listen_v1, 'media'):
+                        # media() might be for file transcription, but let's try
+                        available = [x for x in dir(listen_v1) if not x.startswith('_')]
+                        print(f"[WebCompanion] Available methods on listen.v1: {available}")
+                        raise Exception(f"connect() methods failed. Available methods: {available}")
+                except Exception as e3:
+                    raise Exception(f"All connection attempts failed: {e}, {e2}, {e3}")
         except Exception as e:
             print(f"[WebCompanion] Error creating Deepgram connection: {e}")
             import traceback
             traceback.print_exc()
-            # Try alternative: maybe it's a different method name
-            try:
-                print(f"[WebCompanion] Trying alternative: listen.v1.websocket()")
-                listen_v1 = self.dg_client.listen.v1
-                if hasattr(listen_v1, 'websocket'):
-                    self.dg_connection = listen_v1.websocket(options)
-                elif hasattr(listen_v1, 'live'):
-                    self.dg_connection = listen_v1.live(options)
-                else:
-                    # List available methods
-                    available = [x for x in dir(listen_v1) if not x.startswith('_')]
-                    print(f"[WebCompanion] Available methods on listen.v1: {available}")
-                    raise Exception(f"listen.v1.connect() failed and no alternative found. Available methods: {available}")
-            except Exception as e2:
-                print(f"[WebCompanion] Alternative also failed: {e2}")
-                raise Exception(f"Failed to create Deepgram connection: {e}. Alternative also failed: {e2}")
+            raise Exception(f"Failed to create Deepgram connection: {e}")
         
         # Event handlers
         def on_message(result, **kwargs):
