@@ -310,37 +310,32 @@ class WebCompanion:
             }
         
         # In Deepgram SDK v5.x, the API structure is: listen.v1 or listen.v2
-        # Then use .connect() method - options are passed as keyword arguments, not a dict
+        # Then use .connect() method - options passed as keyword argument 'options'
         print(f"[WebCompanion] Creating Deepgram connection using listen.v1 API")
         try:
             # Access v1 API directly
             listen_v1 = self.dg_client.listen.v1
             print(f"[WebCompanion] Successfully accessed listen.v1: {type(listen_v1)}")
             
-            # In v5.x, connect() takes keyword arguments, not a dict
-            # Unpack the options dict as keyword arguments
-            print(f"[WebCompanion] Calling connect() with options as keyword arguments: {options}")
-            self.dg_connection = listen_v1.connect(**options)
-            print(f"[WebCompanion] Successfully created Deepgram connection using listen.v1.connect(**options)")
+            # In v5.x, connect() takes options as a keyword argument: connect(options={...})
+            print(f"[WebCompanion] Calling connect(options=...) with options: {options}")
+            self.dg_connection = listen_v1.connect(options=options)
+            print(f"[WebCompanion] Successfully created Deepgram connection using listen.v1.connect(options=options)")
         except TypeError as e:
-            print(f"[WebCompanion] TypeError with connect(**options): {e}")
-            # Try without options - maybe connect() doesn't take options and we configure separately
+            print(f"[WebCompanion] TypeError with connect(options=...): {e}")
+            # Try without options - maybe connect() doesn't take options
             try:
-                print(f"[WebCompanion] Trying connect() without options")
+                print(f"[WebCompanion] Trying connect() without any arguments")
                 self.dg_connection = listen_v1.connect()
-                print(f"[WebCompanion] Successfully created connection, will configure separately")
+                print(f"[WebCompanion] Successfully created connection without options")
+                # Store options to use during start() if needed
+                self.dg_options = options
             except Exception as e2:
-                print(f"[WebCompanion] connect() without options also failed: {e2}")
-                # Try using media() method instead
-                try:
-                    print(f"[WebCompanion] Trying listen.v1.media() method")
-                    if hasattr(listen_v1, 'media'):
-                        # media() might be for file transcription, but let's try
-                        available = [x for x in dir(listen_v1) if not x.startswith('_')]
-                        print(f"[WebCompanion] Available methods on listen.v1: {available}")
-                        raise Exception(f"connect() methods failed. Available methods: {available}")
-                except Exception as e3:
-                    raise Exception(f"All connection attempts failed: {e}, {e2}, {e3}")
+                print(f"[WebCompanion] connect() without arguments also failed: {e2}")
+                # List available methods for debugging
+                available = [x for x in dir(listen_v1) if not x.startswith('_')]
+                print(f"[WebCompanion] Available methods on listen.v1: {available}")
+                raise Exception(f"All connect() attempts failed. Available methods: {available}. Errors: {e}, {e2}")
         except Exception as e:
             print(f"[WebCompanion] Error creating Deepgram connection: {e}")
             import traceback
