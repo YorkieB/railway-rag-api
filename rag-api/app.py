@@ -3843,15 +3843,9 @@ async def get_companion_memories(session_id: str):
     
     try:
         # Get memory count from the companion's memory manager
-        # MemoryManager might have a count method, or we can get all and count
-        if hasattr(companion.memory, 'get_all_memories'):
-            memories = companion.memory.get_all_memories()
-            count = len(memories) if memories else 0
-        elif hasattr(companion.memory, 'count'):
-            count = companion.memory.count()
-        else:
-            # Fallback: try to access memories directly
-            count = len(getattr(companion.memory, 'memories', []))
+        # MemoryManager has get_all_memories() method that returns a list
+        memories = companion.memory.get_all_memories(limit=1000)  # Get up to 1000 memories
+        count = len(memories) if memories else 0
         
         return {
             "session_id": session_id,
@@ -3860,6 +3854,8 @@ async def get_companion_memories(session_id: str):
         }
     except Exception as e:
         print(f"[Companion] Error getting memories for session {session_id}: {e}")
+        import traceback
+        traceback.print_exc()
         # Return 0 if there's an error (non-blocking)
         return {
             "session_id": session_id,
