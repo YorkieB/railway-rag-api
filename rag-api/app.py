@@ -251,6 +251,7 @@ def get_chromadb_collection():
     if chroma_collection is None:
         try:
             # Create persistent client
+            print(f"[ChromaDB] Initializing ChromaDB at path: {chromadb_path}")
             chroma_client = chromadb.PersistentClient(path=chromadb_path)
             
             # Create embedding function using OpenAI
@@ -270,8 +271,11 @@ def get_chromadb_collection():
                 name=collection_name,
                 embedding_function=embedding_fn
             )
+            print(f"[ChromaDB] Successfully initialized collection: {collection_name}")
         except Exception as e:
-            print(f"Warning: Failed to initialize ChromaDB: {e}")
+            print(f"[ChromaDB] ERROR: Failed to initialize ChromaDB: {e}")
+            import traceback
+            traceback.print_exc()
             raise
     return chroma_collection
 
@@ -341,76 +345,132 @@ def search_chromadb(
     - Support metadata filtering
     - Implement hybrid search with reranking
     """
-    collection = get_chromadb_collection()
-    
-    # Retrieve more candidates for reranking
-    retrieve_count = min(top_k * 10, 100)
-    
-    # Build where clause for document filter and project_id
-    where_clause = None
-    if document_filter or project_id:
-        where_clause = {}
-        if document_filter:
-            where_clause["document_name"] = document_filter
-        if project_id:
-            where_clause["project_id"] = project_id
-    
-    # Query ChromaDB - it will use the embedding function automatically
-    # But we need to pass the query text, not the embedding
-    # ChromaDB will generate the embedding using OpenAI embedding function
-    results = collection.query(
-        query_texts=[query_text] if query_text else [""],
-        n_results=retrieve_count,
-        where=where_clause
-    )
-    
-    # Process results
-    scored_results = []
-    
-    if results['documents'] and len(results['documents']) > 0:
-        documents = results['documents'][0]
-        metadatas = results['metadatas'][0] if results['metadatas'] else [{}] * len(documents)
-        ids = results['ids'][0] if results['ids'] else []
-        distances = results['distances'][0] if results['distances'] else []
+    try:
+        collection = get_chromadb_collection()
+        
+        # Validate query text
+        if not query_text or not query_text.strip():
+            print(f"[RAG] Warning: Empty query text, returning empty results")
+            return []
+        
+        # Retrieve more candidates for reranking
+        retrieve_count = min(top_k * 10, 100)
+        
+        # Build where clause for document filter and project_id
+        where_clause = None
+        if document_filter or project_id:
+            where_clause = {}
+            if document_filter:
+                where_clause["document_name"] = document_filter
+            if project_id:
+                where_clause["project_id"] = project_id
+        
+        # Query ChromaDB - it will use the embedding function automatically
+        # But we need to pass the query text, not the embedding
+        # ChromaDB will generate the embedding using OpenAI embedding function
+        try:
+            results = collection.query(
+                query_texts=[query_text],
+                n_results=retrieve_count,
+                where=where_clause
+            )
+        except Exception as e:
+            print(f"[RAG] Error querying ChromaDB: {e}")
+            import traceback
+            traceback.print_exc()
+            return []  # Return empty results instead of crashing
+        
+        # Process results
+        scored_results = []
+        
+        # Safely extract results with None checks
+        if not results:
+            print(f"[RAG] Warning: ChromaDB returned None or empty results")
+            return []
+        
+        documents = results.get('documents', [])
+        if not documents or len(documents) == 0:
+            print(f"[RAG] No documents found in ChromaDB for query: {query_text[:50]}...")
+            return []
+        
+        # Safely extract nested arrays
+        documents = documents[0] if documents and len(documents) > 0 else []
+        metadatas = results.get('metadatas', [[]])[0] if results.get('metadatas') and len(results.get('metadatas', [])) > 0 else [{}] * len(documents)
+        ids = results.get('ids', [[]])[0] if results.get('ids') and len(results.get('ids', [])) > 0 else []
+        distances = results.get('distances', [[]])[0] if results.get('distances') and len(results.get('distances', [])) > 0 else []
+        
+        # Ensure all arrays have the same length
+        min_length = min(len(documents), len(metadatas), len(ids), len(distances))
+        if min_length == 0:
+            print(f"[RAG] Warning: All result arrays are empty")
+            return []
+        
+        documents = documents[:min_length]
+        metadatas = metadatas[:min_length] if isinstance(metadatas, list) else [{}] * min_length
+        ids = ids[:min_length]
+        distances = distances[:min_length]
         
         for i, (doc_text, metadata, doc_id, distance) in enumerate(zip(documents, metadatas, ids, distances)):
-            # Convert distance to similarity (ChromaDB returns distance, lower is better)
-            # Distance is typically cosine distance, so similarity = 1 - distance
-            vector_score = 1.0 - distance if distance <= 1.0 else 0.0
-            
-            # Hybrid search: combine vector and keyword scores
-            if use_hybrid and query_text:
-                keyword_score_val = keyword_score(query_text, doc_text)
-                # Weighted combination: 70% vector, 30% keyword
-                combined_score = 0.7 * vector_score + 0.3 * keyword_score_val
-            else:
-                combined_score = vector_score
-            
-            scored_results.append({
-                'id': doc_id,
-                'document_name': metadata.get('document_name', 'unknown'),
-                'text': doc_text,
-                'chunk_index': metadata.get('chunk_index', 0),
-                'score': float(combined_score),
-                'vector_score': float(vector_score),
-                'keyword_score': float(keyword_score(query_text, doc_text)) if query_text else 0.0
-            })
+            try:
+                # Validate data types
+                if not isinstance(doc_text, str):
+                    doc_text = str(doc_text) if doc_text else ""
+                if not isinstance(metadata, dict):
+                    metadata = {} if metadata is None else {}
+                if not isinstance(doc_id, (str, int)):
+                    doc_id = str(doc_id) if doc_id else f"unknown_{i}"
+                
+                # Convert distance to similarity (ChromaDB returns distance, lower is better)
+                # Distance is typically cosine distance, so similarity = 1 - distance
+                try:
+                    distance_float = float(distance) if distance is not None else 1.0
+                except (ValueError, TypeError):
+                    distance_float = 1.0
+                
+                vector_score = 1.0 - distance_float if distance_float <= 1.0 else 0.0
+                
+                # Hybrid search: combine vector and keyword scores
+                if use_hybrid and query_text:
+                    keyword_score_val = keyword_score(query_text, doc_text)
+                    # Weighted combination: 70% vector, 30% keyword
+                    combined_score = 0.7 * vector_score + 0.3 * keyword_score_val
+                else:
+                    combined_score = vector_score
+                
+                scored_results.append({
+                    'id': str(doc_id),
+                    'document_name': metadata.get('document_name', 'unknown') if isinstance(metadata, dict) else 'unknown',
+                    'text': doc_text,
+                    'chunk_index': metadata.get('chunk_index', 0) if isinstance(metadata, dict) else 0,
+                    'score': float(combined_score),
+                    'vector_score': float(vector_score),
+                    'keyword_score': float(keyword_score(query_text, doc_text)) if query_text else 0.0
+                })
+            except Exception as e:
+                print(f"[RAG] Error processing result {i}: {e}")
+                continue  # Skip this result instead of crashing
+        
+        # Sort by combined score
+        scored_results.sort(key=lambda x: x['score'], reverse=True)
+        
+        # Simple reranking: boost scores for documents with high keyword match
+        if use_hybrid and query_text:
+            for result in scored_results:
+                # Boost if keyword score is high (indicates exact term match)
+                if result.get('keyword_score', 0) > 0.5:
+                    result['score'] = min(result['score'] * 1.2, 1.0)
+        
+        # Re-sort after reranking
+        scored_results.sort(key=lambda x: x['score'], reverse=True)
+        
+        # Return top_k after reranking
+        return scored_results[:top_k]
     
-    # Sort by combined score
-    scored_results.sort(key=lambda x: x['score'], reverse=True)
-    
-    # Simple reranking: boost scores for documents with high keyword match
-    if use_hybrid and query_text:
-        for result in scored_results:
-            # Boost if keyword score is high (indicates exact term match)
-            if result['keyword_score'] > 0.5:
-                result['score'] = min(result['score'] * 1.2, 1.0)
-    
-    # Re-sort after reranking
-    scored_results.sort(key=lambda x: x['score'], reverse=True)
-    
-    # Return top_k after reranking
-    return scored_results[:top_k]
+    except Exception as e:
+        print(f"[RAG] CRITICAL ERROR in search_chromadb: {e}")
+        import traceback
+        traceback.print_exc()
+        return []  # Return empty results instead of crashing
 
 def generate_answer(
     question: str, 
@@ -668,90 +728,146 @@ async def companion_api_health():
 @app.post("/query", response_model=QueryResponse)
 async def query(request: QueryRequest, http_request: Request):
     try:
+        # Validate request
+        if not request.question or not request.question.strip():
+            raise HTTPException(status_code=400, detail="Question cannot be empty")
+        
         # 1. Retrieve relevant memories (if not private session)
         relevant_memories = []
-        if not request.private_session:
-            relevant_memories = memory_storage.search(
-                user_id=request.user_id,
-                query=request.question,
-                project_id=request.project_id,
-                top_k=3
-            )
+        try:
+            if not request.private_session:
+                relevant_memories = memory_storage.search(
+                    user_id=request.user_id,
+                    query=request.question,
+                    project_id=request.project_id,
+                    top_k=3
+                )
+        except Exception as e:
+            print(f"[RAG] Warning: Error retrieving memories: {e}")
+            relevant_memories = []  # Continue without memories
         
         # 2. Search ChromaDB for similar documents (with hybrid search and optional filtering)
         # Note: ChromaDB generates embeddings automatically using OpenAI embedding function
-        similar_docs = search_chromadb(
-            request.question, 
-            request.top_k, 
-            use_hybrid=request.use_hybrid_search,
-            document_filter=request.document_filter,
-            project_id=request.project_id
-        )
+        try:
+            similar_docs = search_chromadb(
+                request.question, 
+                request.top_k, 
+                use_hybrid=request.use_hybrid_search,
+                document_filter=request.document_filter,
+                project_id=request.project_id
+            )
+        except Exception as e:
+            print(f"[RAG] Error in search_chromadb: {e}")
+            import traceback
+            traceback.print_exc()
+            similar_docs = []  # Continue with empty results
         
         # 3. Check uncertainty BEFORE generating answer (prevents hallucination)
-        uncertainty_result = uncertainty_checker.check_retrieval(similar_docs)
+        try:
+            uncertainty_result = uncertainty_checker.check_retrieval(similar_docs)
+        except Exception as e:
+            print(f"[RAG] Error in uncertainty check: {e}")
+            uncertainty_result = {"uncertain": True, "reason": "Error checking uncertainty"}
         
-        if uncertainty_result["uncertain"]:
+        if uncertainty_result.get("uncertain", False):
             # Return structured uncertain response instead of generating answer
-            uncertain_response = uncertainty_checker.generate_uncertain_response(
-                request.question,
-                uncertainty_result["reason"]
-            )
-            return QueryResponse(**uncertain_response)
+            try:
+                uncertain_response = uncertainty_checker.generate_uncertain_response(
+                    request.question,
+                    uncertainty_result.get("reason", "No relevant documents found")
+                )
+                return QueryResponse(**uncertain_response)
+            except Exception as e:
+                print(f"[RAG] Error generating uncertain response: {e}")
+                return QueryResponse(
+                    answer="I'm sorry, I couldn't find relevant information to answer your question. Please try rephrasing it or uploading relevant documents.",
+                    sources=[],
+                    uncertain=True,
+                    reason="Error processing uncertainty response"
+                )
         
         # 4. Generate answer using OpenAI GPT-4o (only if NOT uncertain)
         # Note: conversation_history is None for now (will be added later)
-        answer, budget_check, actual_tokens_used = generate_answer(
-            request.question, 
-            similar_docs, 
-            conversation_history=None,
-            memories=relevant_memories
-        )
+        try:
+            answer, budget_check, actual_tokens_used = generate_answer(
+                request.question, 
+                similar_docs, 
+                conversation_history=None,
+                memories=relevant_memories
+            )
+        except Exception as e:
+            print(f"[RAG] Error generating answer: {e}")
+            import traceback
+            traceback.print_exc()
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Error generating answer: {str(e)}"
+            )
         
         # Track actual cost if we have token usage
         user_id = "default"
         if http_request:
             user_id = http_request.headers.get("X-User-ID", "default")
         if actual_tokens_used > 0:
-            actual_cost = cost_tracker.estimate_cost(actual_tokens_used)
-            # Check budget with actual tokens
-            budget_check_cost = cost_tracker.check_daily_budget(user_id, actual_tokens_used, actual_cost)
-            if not budget_check_cost["within_budget"]:
-                # Budget exceeded - return error
-                raise HTTPException(
-                    status_code=429,
-                    detail={
-                        "error": "Daily budget limit reached",
-                        "tokens_used": budget_check_cost["tokens_used"],
-                        "tokens_limit": budget_check_cost["tokens_limit"],
-                        "dollars_used": budget_check_cost["dollars_used"],
-                        "dollars_limit": budget_check_cost["dollars_limit"]
-                    }
-                )
-            # Update budget with actual tokens
-            cost_tracker.update_budget(user_id, actual_tokens_used, actual_cost)
+            try:
+                actual_cost = cost_tracker.estimate_cost(actual_tokens_used)
+                # Check budget with actual tokens
+                budget_check_cost = cost_tracker.check_daily_budget(user_id, actual_tokens_used, actual_cost)
+                if not budget_check_cost.get("within_budget", True):
+                    # Budget exceeded - return error
+                    raise HTTPException(
+                        status_code=429,
+                        detail={
+                            "error": "Daily budget limit reached",
+                            "tokens_used": budget_check_cost.get("tokens_used", 0),
+                            "tokens_limit": budget_check_cost.get("tokens_limit", 0),
+                            "dollars_used": budget_check_cost.get("dollars_used", 0),
+                            "dollars_limit": budget_check_cost.get("dollars_limit", 0)
+                        }
+                    )
+                # Update budget with actual tokens
+                cost_tracker.update_budget(user_id, actual_tokens_used, actual_cost)
+            except HTTPException:
+                raise  # Re-raise HTTP exceptions
+            except Exception as e:
+                print(f"[RAG] Warning: Error tracking cost: {e}")
+                # Continue without cost tracking
         
         # 4. Format sources
-        sources = [
-            {
-                "document": doc['document_name'],
-                "chunk": doc['chunk_index'],
-                "score": doc['score'],
-                "text": doc['text'][:200] + "..." if len(doc['text']) > 200 else doc['text']
-            }
-            for doc in similar_docs
-        ]
+        sources = []
+        try:
+            sources = [
+                {
+                    "document": doc.get('document_name', 'unknown'),
+                    "chunk": doc.get('chunk_index', 0),
+                    "score": doc.get('score', 0.0),
+                    "text": (doc.get('text', '')[:200] + "...") if len(doc.get('text', '')) > 200 else doc.get('text', '')
+                }
+                for doc in similar_docs
+            ]
+        except Exception as e:
+            print(f"[RAG] Warning: Error formatting sources: {e}")
+            sources = []
         
         # 5. Build response with budget info and memory citations
-        response_data = {
-            "answer": answer,
-            "sources": sources,
-            "uncertain": False,
-            "memories_used": [
-                {"id": m.id, "content": m.content, "type": m.memory_type}
-                for m in relevant_memories
-            ] if relevant_memories else None
-        }
+        try:
+            response_data = {
+                "answer": answer,
+                "sources": sources,
+                "uncertain": False,
+                "memories_used": [
+                    {"id": m.id, "content": m.content, "type": m.memory_type}
+                    for m in relevant_memories
+                ] if relevant_memories else None
+            }
+        except Exception as e:
+            print(f"[RAG] Warning: Error building response data: {e}")
+            response_data = {
+                "answer": answer,
+                "sources": sources,
+                "uncertain": False,
+                "memories_used": None
+            }
         
         # Add budget warning if applicable
         if budget_check.get("warning"):
@@ -760,8 +876,16 @@ async def query(request: QueryRequest, http_request: Request):
         
         return QueryResponse(**response_data)
         
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[RAG] CRITICAL ERROR in /query endpoint: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Internal server error: {str(e)}"
+        )
 
 @app.post("/upload")
 async def upload_document(
