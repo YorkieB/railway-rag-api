@@ -9,20 +9,6 @@ const nextConfig = {
       }
     ]
   },
-  async redirects() {
-    return [
-      {
-        source: '/login',
-        destination: '/',
-        permanent: false,
-      },
-      {
-        source: '/login/:path*',
-        destination: '/',
-        permanent: false,
-      },
-    ];
-  },
 };
 
 module.exports = nextConfig;
