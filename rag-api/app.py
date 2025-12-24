@@ -3763,10 +3763,19 @@ async def create_companion_session():
         )
     
     try:
+        # Verify WebCompanion is available (not None)
+        if WebCompanion is None:
+            raise HTTPException(
+                status_code=503,
+                detail="WebCompanion class is not available. Check that companion_web module imported successfully."
+            )
+        
         session_id = str(uuid.uuid4())
         # Create new companion instance (WebSocket will be set when connection is established)
+        print(f"[Companion] Creating new session: {session_id}")
         companion = WebCompanion(websocket=None)
         active_companion_sessions[session_id] = companion
+        print(f"[Companion] Session created successfully: {session_id}")
         
         return {
             "session_id": session_id,
@@ -3775,8 +3784,19 @@ async def create_companion_session():
         }
     except ValueError as e:
         # Missing API keys (fallback check)
+        print(f"[Companion] ValueError creating session: {e}")
         raise HTTPException(status_code=400, detail=str(e))
+    except TypeError as e:
+        # NoneType is not callable - WebCompanion might be None
+        print(f"[Companion] TypeError creating session: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error creating companion session: {str(e)}. WebCompanion may not be properly imported."
+        )
     except Exception as e:
+        print(f"[Companion] Exception creating session: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error creating companion session: {str(e)}")
 
 @app.websocket("/companion/ws/{session_id}")

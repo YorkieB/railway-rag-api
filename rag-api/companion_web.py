@@ -80,18 +80,15 @@ class WebCompanion:
         
         # Initialize API Clients
         try:
-            # Debug: Log environment variable check
-            import logging
-            logger = logging.getLogger(__name__)
-            
+            # Debug: Log environment variable check (use print for reliability)
             dg_key = os.getenv("DEEPGRAM_API_KEY")
             openai_key = os.getenv("OPENAI_API_KEY")
             eleven_key = os.getenv("ELEVENLABS_API_KEY")
             
-            # Debug logging
-            logger.info(f"Environment variable check - DEEPGRAM_API_KEY: {'SET' if dg_key else 'MISSING'} (length: {len(dg_key) if dg_key else 0})")
-            logger.info(f"Environment variable check - ELEVENLABS_API_KEY: {'SET' if eleven_key else 'MISSING'} (length: {len(eleven_key) if eleven_key else 0})")
-            logger.info(f"Environment variable check - OPENAI_API_KEY: {'SET' if openai_key else 'MISSING'} (length: {len(openai_key) if openai_key else 0})")
+            # Debug logging (use print instead of logger for reliability)
+            print(f"[WebCompanion] Environment variable check - DEEPGRAM_API_KEY: {'SET' if dg_key else 'MISSING'} (length: {len(dg_key) if dg_key else 0})")
+            print(f"[WebCompanion] Environment variable check - ELEVENLABS_API_KEY: {'SET' if eleven_key else 'MISSING'} (length: {len(eleven_key) if eleven_key else 0})")
+            print(f"[WebCompanion] Environment variable check - OPENAI_API_KEY: {'SET' if openai_key else 'MISSING'} (length: {len(openai_key) if openai_key else 0})")
             
             # Debug: Check for common typos
             if not dg_key:
@@ -99,9 +96,9 @@ class WebCompanion:
                 dg_hyphen = os.getenv("DEEPGRAM_API-KEY")
                 dg_lower = os.getenv("deepgram_api_key")
                 if dg_hyphen:
-                    logger.warning("Found DEEPGRAM_API-KEY (with hyphen) but need DEEPGRAM_API_KEY (with underscore)")
+                    print("[WebCompanion] WARNING: Found DEEPGRAM_API-KEY (with hyphen) but need DEEPGRAM_API_KEY (with underscore)")
                 if dg_lower:
-                    logger.warning("Found deepgram_api_key (lowercase) but need DEEPGRAM_API_KEY (uppercase)")
+                    print("[WebCompanion] WARNING: Found deepgram_api_key (lowercase) but need DEEPGRAM_API_KEY (uppercase)")
             
             if not dg_key:
                 raise ValueError("DEEPGRAM_API_KEY environment variable is required")
@@ -110,10 +107,37 @@ class WebCompanion:
             if not eleven_key:
                 raise ValueError("ELEVENLABS_API_KEY environment variable is required")
             
-            self.dg_client = DeepgramClient(dg_key)
-            self.openai_client = AsyncOpenAI(api_key=openai_key)
-            self.eleven_client = ElevenLabs(api_key=eleven_key)
+            # Verify DeepgramClient is available (not None)
+            if not DEEPGRAM_AVAILABLE or DeepgramClient is None:
+                raise ValueError(f"DeepgramClient is not available. DEEPGRAM_AVAILABLE={DEEPGRAM_AVAILABLE}, DeepgramClient={DeepgramClient}. Please install deepgram package: pip install deepgram-sdk")
+            
+            print(f"[WebCompanion] Initializing API clients...")
+            print(f"[WebCompanion] DeepgramClient type: {type(DeepgramClient)}")
+            print(f"[WebCompanion] DEEPGRAM_AVAILABLE: {DEEPGRAM_AVAILABLE}")
+            
+            try:
+                self.dg_client = DeepgramClient(dg_key)
+                print(f"[WebCompanion] DeepgramClient initialized successfully")
+            except Exception as e:
+                print(f"[WebCompanion] Error initializing DeepgramClient: {e}")
+                raise ValueError(f"Failed to initialize DeepgramClient: {e}")
+            
+            try:
+                self.openai_client = AsyncOpenAI(api_key=openai_key)
+                print(f"[WebCompanion] OpenAI client initialized successfully")
+            except Exception as e:
+                print(f"[WebCompanion] Error initializing OpenAI client: {e}")
+                raise ValueError(f"Failed to initialize OpenAI client: {e}")
+            
+            try:
+                self.eleven_client = ElevenLabs(api_key=eleven_key)
+                print(f"[WebCompanion] ElevenLabs client initialized successfully")
+            except Exception as e:
+                print(f"[WebCompanion] Error initializing ElevenLabs client: {e}")
+                raise ValueError(f"Failed to initialize ElevenLabs client: {e}")
+            
             self.http_client = httpx.AsyncClient(timeout=30.0)
+            print(f"[WebCompanion] All API clients initialized successfully")
         except Exception as e:
             if COLORAMA_AVAILABLE:
                 print(Fore.RED + f"Error initializing clients: {e}")
