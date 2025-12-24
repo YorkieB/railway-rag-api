@@ -23,7 +23,6 @@ export type PanelId =
   | "audio-live"
   | "video-live"
   | "export"
-  | "login"
   | "settings";
 
 type SidebarItem = {
@@ -52,7 +51,6 @@ const sidebarItems: SidebarItem[] = [
   { id: "audio-live", label: "Audio Live", icon: "🔊" },
   { id: "video-live", label: "Video Live", icon: "📹" },
   { id: "export", label: "Export", icon: "💾" },
-  { id: "login", label: "Login", icon: "🔐" },
   { id: "settings", label: "Settings", icon: "⚙️" }
 ];
 

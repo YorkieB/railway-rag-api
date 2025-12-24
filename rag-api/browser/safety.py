@@ -122,33 +122,6 @@ class BrowserSafety:
         
         return False
     
-    def is_login_action(self, action: str, element: Dict) -> bool:
-        """
-        Check if action involves login/2FA (BC4: blocked).
-        
-        Args:
-            action: Action type
-            element: AX tree element data
-            
-        Returns:
-            True if action involves login
-        """
-        name = element.get("name", "").lower()
-        role = element.get("role", "").lower()
-        
-        login_keywords = [
-            "login", "sign in", "password", "username", "email",
-            "authenticate", "2fa", "two factor", "verify"
-        ]
-        
-        if any(keyword in name for keyword in login_keywords):
-            return True
-        
-        if role == "textbox" and ("password" in name or "login" in name):
-            return True
-        
-        return False
-    
     def log_action(self, action: str, details: Dict) -> Dict:
         """
         Log browser action for audit trail.

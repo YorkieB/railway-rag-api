@@ -256,11 +256,6 @@ export default function Home() {
     );
   }
 
-  // Redirect handled by _app.tsx, but show message if not authenticated
-  if (!isAuthenticated) {
-    return null;
-  }
-
   return (
     <>
       <Head>

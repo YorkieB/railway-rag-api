@@ -47,21 +47,13 @@ class ActionExecutor:
                 "message": "I couldn't find that element on the page."
             }
         
-        # Check safety (no payments, no login)
+        # Check safety (no payments)
         if browser_safety.is_payment_action("click", element):
             return {
                 "success": False,
                 "blocked": True,
                 "reason": "payment_action",
                 "message": "Payment actions are blocked for safety."
-            }
-        
-        if browser_safety.is_login_action("click", element):
-            return {
-                "success": False,
-                "blocked": True,
-                "reason": "login_action",
-                "message": "Login/2FA actions are blocked. Please enter credentials manually."
             }
         
         try:
@@ -130,14 +122,7 @@ class ActionExecutor:
                 "message": "I couldn't find that input field on the page."
             }
         
-        # Check safety
-        if browser_safety.is_login_action("type", element):
-            return {
-                "success": False,
-                "blocked": True,
-                "reason": "login_action",
-                "message": "Login fields are blocked. Please enter credentials manually."
-            }
+        # No safety checks needed for typing
         
         try:
             element_name = element.get("name", "")
