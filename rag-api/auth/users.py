@@ -193,6 +193,7 @@ class UserManager:
         user_data["password_hash"] = hash_password(new_password)
         user_data["reset_token"] = None
         user_data["reset_token_expiry"] = None
+        save_users(users_db)  # Persist to disk
         return True
     
     def generate_password_reset_token(self, email: str) -> Optional[str]:
