@@ -145,7 +145,33 @@ from models import (
     VideoGenerationRequest, ChartGenerationRequest, SpotifyPlaylistCreateRequest, SmartPlaylistRequest,
     ProjectShareRequest, UserRegisterRequest, UserLoginRequest
 )
-from auth.users import user_manager
+
+# Auth import - wrap in try/except to prevent crashes
+try:
+    from auth.users import user_manager
+    AUTH_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Auth module not available: {e}")
+    # Create a dummy user_manager to prevent crashes
+    class DummyUserManager:
+        def create_user(self, *args, **kwargs):
+            raise HTTPException(status_code=503, detail="Authentication not available")
+        def authenticate_user(self, *args, **kwargs):
+            raise HTTPException(status_code=503, detail="Authentication not available")
+    user_manager = DummyUserManager()
+    AUTH_AVAILABLE = False
+except Exception as e:
+    print(f"Warning: Error loading auth module: {e}")
+    import traceback
+    traceback.print_exc()
+    class DummyUserManager:
+        def create_user(self, *args, **kwargs):
+            raise HTTPException(status_code=503, detail="Authentication not available")
+        def authenticate_user(self, *args, **kwargs):
+            raise HTTPException(status_code=503, detail="Authentication not available")
+    user_manager = DummyUserManager()
+    AUTH_AVAILABLE = False
+
 # Using ChromaDB's built-in OpenAI embedding function and OpenAI for answer generation
 
 @asynccontextmanager

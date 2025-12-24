@@ -4,10 +4,20 @@ JWT Token Handler
 Handles JWT token creation, validation, and refresh.
 """
 import os
-import jwt
 from datetime import datetime, timedelta
 from typing import Optional, Dict
 import bcrypt
+
+# Try to import jwt - support both PyJWT and python-jose
+try:
+    import jwt
+    JWT_LIB = "PyJWT"
+except ImportError:
+    try:
+        from jose import jwt
+        JWT_LIB = "python-jose"
+    except ImportError:
+        raise ImportError("Neither PyJWT nor python-jose is installed. Install one with: pip install PyJWT or pip install python-jose[cryptography]")
 
 # Password hashing - using bcrypt directly
 
@@ -52,9 +62,12 @@ def verify_token(token: str) -> Optional[Dict]:
     try:
         payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
         return payload
-    except jwt.ExpiredSignatureError:
-        return None
-    except jwt.InvalidTokenError:
+    except Exception as e:
+        # Handle both PyJWT and python-jose exceptions
+        if "ExpiredSignatureError" in str(type(e)) or "expired" in str(e).lower():
+            return None
+        if "InvalidTokenError" in str(type(e)) or "invalid" in str(e).lower():
+            return None
         return None
 
 

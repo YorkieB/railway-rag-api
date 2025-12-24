@@ -28,6 +28,7 @@ plotly>=5.18.0
 spotipy>=2.23.0
 deepgram-sdk>=3.0.0
 elevenlabs>=0.2.0
+PyJWT>=2.8.0
 python-jose[cryptography]>=3.3.0
 bcrypt>=4.0.0
 pytesseract>=0.3.10
