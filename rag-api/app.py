@@ -301,8 +301,29 @@ budget_enforcer = ContextBudgetEnforcer(max_tokens=100000, warn_threshold=0.8)
 # Initialize cost tracker
 cost_tracker = CostTracker()
 
-# Initialize memory storage
-memory_storage = MemoryStorage(chromadb_path=chromadb_path)
+# Initialize memory storage (with error handling)
+try:
+    memory_storage = MemoryStorage(chromadb_path=chromadb_path)
+    print("[Startup] Memory storage initialized successfully")
+except Exception as e:
+    print(f"Warning: Failed to initialize memory storage: {e}")
+    import traceback
+    traceback.print_exc()
+    # Create a dummy storage that won't crash
+    class DummyMemoryStorage:
+        def search(self, *args, **kwargs):
+            return []
+        def create(self, *args, **kwargs):
+            raise HTTPException(status_code=503, detail="Memory storage not available")
+        def list(self, *args, **kwargs):
+            return []
+        def get(self, *args, **kwargs):
+            raise HTTPException(status_code=503, detail="Memory storage not available")
+        def update(self, *args, **kwargs):
+            raise HTTPException(status_code=503, detail="Memory storage not available")
+        def delete(self, *args, **kwargs):
+            raise HTTPException(status_code=503, detail="Memory storage not available")
+    memory_storage = DummyMemoryStorage()
 
 # Initialize OpenAI client (lazy initialization) - used for answer generation and vision
 openai_client = None
