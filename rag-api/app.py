@@ -61,8 +61,9 @@ from memory.templates import memory_template_manager
 from models import (
     ImageGenerationRequest, ImageEditRequest, ImageVariationsRequest, ImageAnalysisRequest,
     VideoGenerationRequest, ChartGenerationRequest, SpotifyPlaylistCreateRequest, SmartPlaylistRequest,
-    ProjectShareRequest
+    ProjectShareRequest, UserRegisterRequest, UserLoginRequest
 )
+from auth.users import user_manager
 # Using ChromaDB's built-in OpenAI embedding function and OpenAI for answer generation
 
 @asynccontextmanager
