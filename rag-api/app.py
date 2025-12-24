@@ -2592,7 +2592,10 @@ async def list_spotify_playlists(user_id: str = "default"):
     try:
         client = get_spotify_client(user_id)
         if not client.client:
-            raise HTTPException(status_code=401, detail="Not authenticated with Spotify")
+            raise HTTPException(
+                status_code=401, 
+                detail="Not authenticated with Spotify. Please authenticate first via /spotify/auth endpoint."
+            )
         
         playlists = client.client.current_user_playlists()
         return {

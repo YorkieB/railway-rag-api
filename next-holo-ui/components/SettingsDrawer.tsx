@@ -74,10 +74,10 @@ export function SettingsDrawer({
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-2 border-b border-gray-200 mb-4">
+            <div className="flex gap-2 border-b border-gray-200 mb-4 overflow-x-auto">
               <button
                 onClick={() => setActiveTab("settings")}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === "settings"
                     ? "border-primary text-primary"
                     : "border-transparent text-gray-600 hover:text-gray-900"
@@ -87,7 +87,7 @@ export function SettingsDrawer({
               </button>
               <button
                 onClick={() => setActiveTab("diagnostics")}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === "diagnostics"
                     ? "border-primary text-primary"
                     : "border-transparent text-gray-600 hover:text-gray-900"
@@ -98,7 +98,7 @@ export function SettingsDrawer({
               {isAdmin && (
                 <button
                   onClick={() => setActiveTab("users")}
-                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                     activeTab === "users"
                       ? "border-primary text-primary"
                       : "border-transparent text-gray-600 hover:text-gray-900"
@@ -109,7 +109,7 @@ export function SettingsDrawer({
               )}
               <button
                 onClick={() => setActiveTab("integrations")}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === "integrations"
                     ? "border-primary text-primary"
                     : "border-transparent text-gray-600 hover:text-gray-900"
