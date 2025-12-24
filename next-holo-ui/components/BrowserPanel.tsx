@@ -32,6 +32,7 @@ export function BrowserPanel({ apiBase }: Props) {
   const [actionHistory, setActionHistory] = useState<ActionHistory>([]);
   const [safetyWarnings, setSafetyWarnings] = useState<string[]>([]);
   const [uncertaintyMessages, setUncertaintyMessages] = useState<string[]>([]);
+  const [pageInfo, setPageInfo] = useState<any>(null);
   
   const navigateUrlRef = useRef<HTMLInputElement>(null);
   const clickRoleRef = useRef<HTMLInputElement>(null);
@@ -65,6 +66,7 @@ export function BrowserPanel({ apiBase }: Props) {
       setStatus("active");
       await refreshScreenshot();
       await refreshAxTree();
+      await refreshPageInfo();
     } catch (err: any) {
       console.error("Error creating session:", err);
       setStatus("error");
@@ -116,6 +118,21 @@ export function BrowserPanel({ apiBase }: Props) {
     }
   };
 
+  const refreshPageInfo = async () => {
+    if (!sessionId) return;
+    
+    try {
+      const response = await fetch(`${apiBase}/browser/sessions/${sessionId}/page-info`);
+      if (response.ok) {
+        const data = await response.json();
+        setPageInfo(data);
+        setCurrentUrl(data.url || "");
+      }
+    } catch (err) {
+      console.error("Error getting page info:", err);
+    }
+  };
+
   const normalizeUrl = (input: string): string => {
     // Remove whitespace
     input = input.trim();
@@ -157,6 +174,7 @@ export function BrowserPanel({ apiBase }: Props) {
         }]);
         await refreshScreenshot();
         await refreshAxTree();
+        await refreshPageInfo();
       } else {
         setSafetyWarnings(prev => [...prev, data.detail || "Navigation blocked"]);
       }
@@ -200,6 +218,7 @@ export function BrowserPanel({ apiBase }: Props) {
       if (data.success) {
         await refreshScreenshot();
         await refreshAxTree();
+        await refreshPageInfo();
       }
     } catch (err: any) {
       console.error("Error clicking:", err);
@@ -241,6 +260,7 @@ export function BrowserPanel({ apiBase }: Props) {
       if (data.success) {
         await refreshScreenshot();
         await refreshAxTree();
+        await refreshPageInfo();
       }
     } catch (err: any) {
       console.error("Error typing:", err);
@@ -306,6 +326,7 @@ export function BrowserPanel({ apiBase }: Props) {
       if (data.success) {
         await refreshScreenshot();
         await refreshAxTree();
+        await refreshPageInfo();
         // Clear password field for security
         if (loginPasswordRef.current) loginPasswordRef.current.value = "";
       } else {

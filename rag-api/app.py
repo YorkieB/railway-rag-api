@@ -1610,6 +1610,82 @@ async def get_ax_tree(session_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error extracting AX tree: {str(e)}")
 
+@app.get("/browser/sessions/{session_id}/page-info")
+async def get_page_info(session_id: str):
+    """Get current page information (URL, title, content summary)"""
+    if session_id not in active_browser_sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    browser_session = active_browser_sessions[session_id]
+    if not browser_session.is_active():
+        raise HTTPException(status_code=400, detail="Browser session not active")
+    
+    try:
+        page = browser_session.page
+        url = page.url
+        title = await page.title()
+        
+        # Get page content summary
+        try:
+            # Get main text content
+            body_text = await page.evaluate("""
+                () => {
+                    const body = document.body;
+                    if (!body) return '';
+                    return body.innerText || body.textContent || '';
+                }
+            """)
+            # Get first 500 chars as summary
+            content_summary = body_text[:500] if body_text else ""
+        except:
+            content_summary = ""
+        
+        # Get all input fields
+        try:
+            inputs = await page.evaluate("""
+                () => {
+                    const inputs = Array.from(document.querySelectorAll('input, textarea, select'));
+                    return inputs.map(input => ({
+                        id: input.id || '',
+                        name: input.name || '',
+                        type: input.type || input.tagName.toLowerCase(),
+                        placeholder: input.placeholder || '',
+                        value: input.value || '',
+                        required: input.required || false
+                    }));
+                }
+            """)
+        except:
+            inputs = []
+        
+        # Get all buttons
+        try:
+            buttons = await page.evaluate("""
+                () => {
+                    const buttons = Array.from(document.querySelectorAll('button, input[type="submit"], input[type="button"]'));
+                    return buttons.map(btn => ({
+                        id: btn.id || '',
+                        name: btn.name || '',
+                        type: btn.type || 'button',
+                        text: btn.innerText || btn.value || btn.textContent || '',
+                        disabled: btn.disabled || false
+                    }));
+                }
+            """)
+        except:
+            buttons = []
+        
+        return {
+            "session_id": session_id,
+            "url": url,
+            "title": title,
+            "content_summary": content_summary,
+            "inputs": inputs,
+            "buttons": buttons
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting page info: {str(e)}")
+
 @app.post("/browser/sessions/{session_id}/navigate")
 async def navigate_browser(session_id: str, url: str):
     """Navigate browser to URL (with safety check)"""

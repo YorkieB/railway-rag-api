@@ -52,23 +52,40 @@ class LoginHelper:
             if username_field:
                 break
         
-        # If not found by name, try to find by input type or placeholder
+        # If not found by name, try to find by input type, ID, or placeholder
         if not username_field:
-            # Try to find by common input types
+            # Try to find by common input types and IDs
             try:
-                email_inputs = await self.page.query_selector_all('input[type="email"], input[type="text"][name*="user"], input[type="text"][name*="email"], input[type="text"][id*="user"], input[type="text"][id*="email"]')
-                if email_inputs:
-                    # Get the first email input's accessibility info
-                    for input_elem in email_inputs[:1]:
-                        # Try to get accessible name
-                        name = await input_elem.get_attribute("name") or await input_elem.get_attribute("id") or ""
-                        username_field = {
-                            "role": "textbox",
-                            "name": name,
-                            "selector": "input[type='email']" if await input_elem.get_attribute("type") == "email" else f"input[name='{name}']"
-                        }
-                        break
-            except:
+                # Try input#email first (common pattern)
+                email_by_id = await self.page.query_selector('input#email')
+                if email_by_id:
+                    username_field = {
+                        "role": "textbox",
+                        "name": "email",
+                        "id": "email",
+                        "selector": "input#email"
+                    }
+                else:
+                    # Try other email input patterns
+                    email_inputs = await self.page.query_selector_all('input[type="email"], input[type="text"][name*="user"], input[type="text"][name*="email"], input[type="text"][id*="user"], input[type="text"][id*="email"]')
+                    if email_inputs:
+                        # Get the first email input's accessibility info
+                        for input_elem in email_inputs[:1]:
+                            # Try to get accessible name, id, or name attribute
+                            elem_id = await input_elem.get_attribute("id") or ""
+                            elem_name = await input_elem.get_attribute("name") or ""
+                            name = elem_name or elem_id or ""
+                            input_type = await input_elem.get_attribute("type") or "text"
+                            
+                            username_field = {
+                                "role": "textbox",
+                                "name": name,
+                                "id": elem_id,
+                                "selector": f"input#{elem_id}" if elem_id else (f"input[type='{input_type}']" if input_type == "email" else f"input[name='{elem_name}']")
+                            }
+                            break
+            except Exception as e:
+                print(f"Error finding email field: {e}")
                 pass
         
         # Find password field
@@ -81,20 +98,35 @@ class LoginHelper:
             if password_field:
                 break
         
-        # If password not found, try by input type
+        # If password not found, try by input type or ID
         if not password_field:
             try:
-                password_inputs = await self.page.query_selector_all('input[type="password"]')
-                if password_inputs:
-                    for input_elem in password_inputs[:1]:
-                        name = await input_elem.get_attribute("name") or await input_elem.get_attribute("id") or ""
-                        password_field = {
-                            "role": "textbox",
-                            "name": name,
-                            "selector": "input[type='password']"
-                        }
-                        break
-            except:
+                # Try input#password first (common pattern)
+                password_by_id = await self.page.query_selector('input#password')
+                if password_by_id:
+                    password_field = {
+                        "role": "textbox",
+                        "name": "password",
+                        "id": "password",
+                        "selector": "input#password"
+                    }
+                else:
+                    # Try all password inputs
+                    password_inputs = await self.page.query_selector_all('input[type="password"]')
+                    if password_inputs:
+                        for input_elem in password_inputs[:1]:
+                            elem_id = await input_elem.get_attribute("id") or ""
+                            elem_name = await input_elem.get_attribute("name") or ""
+                            name = elem_name or elem_id or "password"
+                            password_field = {
+                                "role": "textbox",
+                                "name": name,
+                                "id": elem_id,
+                                "selector": f"input#{elem_id}" if elem_id else "input[type='password']"
+                            }
+                            break
+            except Exception as e:
+                print(f"Error finding password field: {e}")
                 pass
         
         return {
@@ -137,20 +169,31 @@ class LoginHelper:
             try:
                 username_field = fields["username_field"]
                 
-                # Try using accessible name first
-                if "name" in username_field and username_field["name"]:
+                # Try using ID first (most reliable)
+                if "id" in username_field and username_field["id"]:
+                    await self.page.fill(f'input#{username_field["id"]}', username)
+                # Try using accessible name
+                elif "name" in username_field and username_field["name"]:
                     await self.page.get_by_role("textbox", name=username_field["name"]).fill(username)
                 # Fallback to selector if available
                 elif "selector" in username_field:
                     await self.page.fill(username_field["selector"], username)
                 # Try common selectors
                 else:
-                    await self.page.fill('input[type="email"]', username)
-                    # If that fails, try first text input
-                    if not await self.page.query_selector('input[type="email"]'):
-                        inputs = await self.page.query_selector_all('input[type="text"]')
-                        if inputs:
-                            await inputs[0].fill(username)
+                    # Try email input by type
+                    email_input = await self.page.query_selector('input[type="email"]')
+                    if email_input:
+                        await email_input.fill(username)
+                    else:
+                        # Try input with id="email"
+                        email_by_id = await self.page.query_selector('input#email')
+                        if email_by_id:
+                            await email_by_id.fill(username)
+                        else:
+                            # Try first text input
+                            inputs = await self.page.query_selector_all('input[type="text"]')
+                            if inputs:
+                                await inputs[0].fill(username)
                 
                 results.append({
                     "field": "username",
@@ -168,15 +211,23 @@ class LoginHelper:
             try:
                 password_field = fields["password_field"]
                 
-                # Try using accessible name first
-                if "name" in password_field and password_field["name"]:
+                # Try using ID first (most reliable)
+                if "id" in password_field and password_field["id"]:
+                    await self.page.fill(f'input#{password_field["id"]}', password)
+                # Try using accessible name
+                elif "name" in password_field and password_field["name"]:
                     await self.page.get_by_role("textbox", name=password_field["name"]).fill(password)
                 # Fallback to selector if available
                 elif "selector" in password_field:
                     await self.page.fill(password_field["selector"], password)
                 # Fallback to password input type
                 else:
-                    await self.page.fill('input[type="password"]', password)
+                    # Try input#password
+                    password_by_id = await self.page.query_selector('input#password')
+                    if password_by_id:
+                        await password_by_id.fill(password)
+                    else:
+                        await self.page.fill('input[type="password"]', password)
                 
                 results.append({
                     "field": "password",
