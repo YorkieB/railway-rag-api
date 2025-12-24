@@ -2764,13 +2764,19 @@ async def register_user(request: UserRegisterRequest):
 async def login_user(request: UserLoginRequest):
     """Authenticate user and return access token"""
     try:
+        print(f"[Auth] Login attempt for email: {request.email}")
         result = user_manager.authenticate_user(request.email, request.password)
         if not result:
+            print(f"[Auth] Login failed: Invalid credentials for {request.email}")
             raise HTTPException(status_code=401, detail="Invalid credentials")
+        print(f"[Auth] Login successful for {request.email}")
         return result
     except HTTPException:
         raise
     except Exception as e:
+        print(f"[Auth] Login error: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
 
 @app.get("/auth/me")
@@ -2795,7 +2801,28 @@ async def get_current_user(request: Request):
     except HTTPException:
         raise
     except Exception as e:
+        print(f"[Auth] Error in /auth/me: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error getting user: {str(e)}")
+
+@app.get("/auth/debug")
+async def debug_auth():
+    """Debug endpoint to check authentication status"""
+    try:
+        users = user_manager.list_users()
+        return {
+            "total_users": len(users),
+            "users": users,
+            "default_admin_email": os.getenv("DEFAULT_ADMIN_EMAIL", "admin@jarvisb.app"),
+            "user_storage_file": os.getenv("USER_STORAGE_FILE", os.path.join(os.getcwd(), "users.json")),
+            "storage_file_exists": os.path.exists(os.getenv("USER_STORAGE_FILE", os.path.join(os.getcwd(), "users.json")))
+        }
+    except Exception as e:
+        return {
+            "error": str(e),
+            "type": type(e).__name__
+        }
 
 @app.post("/auth/forgot-password")
 async def forgot_password(request: ForgotPasswordRequest):
