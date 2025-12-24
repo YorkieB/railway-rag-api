@@ -309,39 +309,40 @@ class WebCompanion:
                 "vad_events": True
             }
         
-        # In Deepgram SDK v5.x, the API has changed
-        # Try different patterns to find the correct one
+        # In Deepgram SDK v5.x, the API structure is: listen.v1 or listen.v2
+        # Then use .connect() method with options
+        print(f"[WebCompanion] Creating Deepgram connection using listen.v1 API")
         try:
-            # Try v5.x pattern: listen.websocket.v("1")
-            print(f"[WebCompanion] Attempting to create Deepgram connection using listen.websocket.v('1')")
-            self.dg_connection = self.dg_client.listen.websocket.v("1")
-            print(f"[WebCompanion] Successfully created connection using websocket method")
-        except AttributeError as e1:
-            print(f"[WebCompanion] websocket method not available: {e1}")
+            # Access v1 API directly
+            listen_v1 = self.dg_client.listen.v1
+            print(f"[WebCompanion] Successfully accessed listen.v1: {type(listen_v1)}")
+            
+            # Create connection using connect() method with options
+            # In v5.x, connect() is a context manager, but we can also use it directly
+            # The options dict is passed to connect()
+            print(f"[WebCompanion] Calling connect() with options: {options}")
+            self.dg_connection = listen_v1.connect(options)
+            print(f"[WebCompanion] Successfully created Deepgram connection using listen.v1.connect()")
+        except Exception as e:
+            print(f"[WebCompanion] Error creating Deepgram connection: {e}")
+            import traceback
+            traceback.print_exc()
+            # Try alternative: maybe it's a different method name
             try:
-                # Try v3.x pattern: listen.live.v("1")
-                print(f"[WebCompanion] Attempting to create Deepgram connection using listen.live.v('1')")
-                self.dg_connection = self.dg_client.listen.live.v("1")
-                print(f"[WebCompanion] Successfully created connection using live method")
-            except AttributeError as e2:
-                print(f"[WebCompanion] live method not available: {e2}")
-                # Try direct access
-                try:
-                    print(f"[WebCompanion] Attempting direct access to listen client")
-                    listen_client = self.dg_client.listen
-                    print(f"[WebCompanion] ListenClient type: {type(listen_client)}, dir: {[x for x in dir(listen_client) if not x.startswith('_')]}")
-                    # Try to find the correct method
-                    if hasattr(listen_client, 'websocket'):
-                        self.dg_connection = listen_client.websocket.v("1")
-                    elif hasattr(listen_client, 'live'):
-                        self.dg_connection = listen_client.live.v("1")
-                    else:
-                        raise AttributeError(f"ListenClient has neither 'websocket' nor 'live' attribute. Available: {[x for x in dir(listen_client) if not x.startswith('_')]}")
-                except Exception as e3:
-                    print(f"[WebCompanion] All connection attempts failed: {e3}")
-                    import traceback
-                    traceback.print_exc()
-                    raise Exception(f"Failed to create Deepgram connection. Tried websocket, live, and direct access. Error: {e3}")
+                print(f"[WebCompanion] Trying alternative: listen.v1.websocket()")
+                listen_v1 = self.dg_client.listen.v1
+                if hasattr(listen_v1, 'websocket'):
+                    self.dg_connection = listen_v1.websocket(options)
+                elif hasattr(listen_v1, 'live'):
+                    self.dg_connection = listen_v1.live(options)
+                else:
+                    # List available methods
+                    available = [x for x in dir(listen_v1) if not x.startswith('_')]
+                    print(f"[WebCompanion] Available methods on listen.v1: {available}")
+                    raise Exception(f"listen.v1.connect() failed and no alternative found. Available methods: {available}")
+            except Exception as e2:
+                print(f"[WebCompanion] Alternative also failed: {e2}")
+                raise Exception(f"Failed to create Deepgram connection: {e}. Alternative also failed: {e2}")
         
         # Event handlers
         def on_message(result, **kwargs):
@@ -471,18 +472,59 @@ class WebCompanion:
             }))
         
         # Register event handlers (per guidance: use VAD events for interruption)
-        if LiveTranscriptionEvents:
-            self.dg_connection.on(LiveTranscriptionEvents.Transcript, on_message)
-            self.dg_connection.on(LiveTranscriptionEvents.SpeechStarted, on_speech_started)
-            self.dg_connection.on(LiveTranscriptionEvents.Error, on_error)
-        else:
-            # Fallback: use string event names
-            self.dg_connection.on("transcript", on_message)
-            self.dg_connection.on("speech_started", on_speech_started)
-            self.dg_connection.on("error", on_error)
+        # In v5.x, try EventType from deepgram.core.events first, then fallback to strings
+        try:
+            from deepgram.core.events import EventType
+            print(f"[WebCompanion] Using EventType from deepgram.core.events")
+            self.dg_connection.on(EventType.MESSAGE, on_message)
+            self.dg_connection.on(EventType.OPEN, lambda _: print("[WebCompanion] Deepgram connection opened"))
+            self.dg_connection.on(EventType.CLOSE, lambda _: print("[WebCompanion] Deepgram connection closed"))
+            self.dg_connection.on(EventType.ERROR, on_error)
+            # For speech started, try to find the right event type
+            if hasattr(EventType, 'SPEECH_STARTED'):
+                self.dg_connection.on(EventType.SPEECH_STARTED, on_speech_started)
+            elif hasattr(EventType, 'VAD_STARTED'):
+                self.dg_connection.on(EventType.VAD_STARTED, on_speech_started)
+        except ImportError:
+            print(f"[WebCompanion] EventType not available, using LiveTranscriptionEvents or strings")
+            if LiveTranscriptionEvents:
+                self.dg_connection.on(LiveTranscriptionEvents.Transcript, on_message)
+                self.dg_connection.on(LiveTranscriptionEvents.SpeechStarted, on_speech_started)
+                self.dg_connection.on(LiveTranscriptionEvents.Error, on_error)
+            else:
+                # Fallback: use string event names
+                print(f"[WebCompanion] Using string event names as fallback")
+                self.dg_connection.on("transcript", on_message)
+                self.dg_connection.on("speech_started", on_speech_started)
+                self.dg_connection.on("error", on_error)
+                # Also try common v5.x event names
+                try:
+                    self.dg_connection.on("message", on_message)
+                    self.dg_connection.on("open", lambda _: print("[WebCompanion] Deepgram connection opened"))
+                    self.dg_connection.on("close", lambda _: print("[WebCompanion] Deepgram connection closed"))
+                except:
+                    pass
         
-        if self.dg_connection.start(options) is False:
-            raise Exception("Failed to start Deepgram connection")
+        # Start the connection
+        # In v5.x, might be start_listening() instead of start()
+        try:
+            if hasattr(self.dg_connection, 'start_listening'):
+                print(f"[WebCompanion] Starting connection using start_listening()")
+                self.dg_connection.start_listening()
+            elif hasattr(self.dg_connection, 'start'):
+                print(f"[WebCompanion] Starting connection using start()")
+                result = self.dg_connection.start()
+                if result is False:
+                    raise Exception("Failed to start Deepgram connection (returned False)")
+            else:
+                print(f"[WebCompanion] Connection object methods: {[x for x in dir(self.dg_connection) if not x.startswith('_')]}")
+                # Connection might already be started by connect()
+                print(f"[WebCompanion] Assuming connection is already started by connect()")
+        except Exception as e:
+            print(f"[WebCompanion] Error starting connection: {e}")
+            import traceback
+            traceback.print_exc()
+            raise Exception(f"Failed to start Deepgram connection: {e}")
         
         if COLORAMA_AVAILABLE:
             if COLORAMA_AVAILABLE:
