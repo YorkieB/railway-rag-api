@@ -29,35 +29,117 @@ from browser.safety import browser_safety
 from browser.actions import ActionExecutor
 from browser.agent_loop import BrowserAutomation
 from export import export_conversation_to_pdf, export_query_results_to_pdf
-from windows.device import device_pairing
-from windows.credentials import credential_manager
-from windows.security import trust_boundaries
-from windows.apps import app_manager
-from windows.files import file_manager
-from windows.vision import screen_vision
-from windows.roc import roc
-from windows.panic import panic_stop
-from windows.indicator import automation_indicator
-from agents.crew import get_crewai_manager
-from agents.autonomy import agent_autonomy_manager
-from memory.relationships import get_relationship_manager
-from memory.expiration import get_expiration_manager
-from memory.analytics import get_memory_analytics
-from avatar.waveform import get_waveform_generator
-from avatar.lipsync import get_lipsync_processor
-from media.image_generation import image_generator
-from media.video_generation import video_generator
-from media.charts import chart_generator
-from media.storage import media_storage
-from integrations.spotify import get_spotify_client
-# Authentication removed - all endpoints are public
-from documents.processing import document_processor
-from analytics.dashboards import analytics_dashboard
-from collaboration.sessions import collaboration_manager
-from collaboration.editing import get_editor
-from memory.clustering import memory_clustering
-from memory.conflicts import memory_conflict_detector
-from memory.templates import memory_template_manager
+
+# Optional imports - wrap in try/except to prevent crashes
+try:
+    from windows.device import device_pairing
+    from windows.credentials import credential_manager
+    from windows.security import trust_boundaries
+    from windows.apps import app_manager
+    from windows.files import file_manager
+    from windows.vision import screen_vision
+    from windows.roc import roc
+    from windows.panic import panic_stop
+    from windows.indicator import automation_indicator
+    WINDOWS_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Windows modules not available: {e}")
+    device_pairing = None
+    credential_manager = None
+    trust_boundaries = None
+    app_manager = None
+    file_manager = None
+    screen_vision = None
+    roc = None
+    panic_stop = None
+    automation_indicator = None
+    WINDOWS_AVAILABLE = False
+
+try:
+    from agents.crew import get_crewai_manager
+    from agents.autonomy import agent_autonomy_manager
+    AGENTS_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Agents modules not available: {e}")
+    get_crewai_manager = None
+    agent_autonomy_manager = None
+    AGENTS_AVAILABLE = False
+
+try:
+    from memory.relationships import get_relationship_manager
+    from memory.expiration import get_expiration_manager
+    from memory.analytics import get_memory_analytics
+    from memory.clustering import memory_clustering
+    from memory.conflicts import memory_conflict_detector
+    from memory.templates import memory_template_manager
+    MEMORY_MODULES_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Memory modules not available: {e}")
+    get_relationship_manager = None
+    get_expiration_manager = None
+    get_memory_analytics = None
+    memory_clustering = None
+    memory_conflict_detector = None
+    memory_template_manager = None
+    MEMORY_MODULES_AVAILABLE = False
+
+try:
+    from avatar.waveform import get_waveform_generator
+    from avatar.lipsync import get_lipsync_processor
+    AVATAR_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Avatar modules not available: {e}")
+    get_waveform_generator = None
+    get_lipsync_processor = None
+    AVATAR_AVAILABLE = False
+
+try:
+    from media.image_generation import image_generator
+    from media.video_generation import video_generator
+    from media.charts import chart_generator
+    from media.storage import media_storage
+    MEDIA_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Media modules not available: {e}")
+    image_generator = None
+    video_generator = None
+    chart_generator = None
+    media_storage = None
+    MEDIA_AVAILABLE = False
+
+try:
+    from integrations.spotify import get_spotify_client
+    SPOTIFY_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Spotify integration not available: {e}")
+    get_spotify_client = None
+    SPOTIFY_AVAILABLE = False
+
+try:
+    from documents.processing import document_processor
+    DOCUMENTS_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Documents processing not available: {e}")
+    document_processor = None
+    DOCUMENTS_AVAILABLE = False
+
+try:
+    from analytics.dashboards import analytics_dashboard
+    ANALYTICS_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Analytics not available: {e}")
+    analytics_dashboard = None
+    ANALYTICS_AVAILABLE = False
+
+try:
+    from collaboration.sessions import collaboration_manager
+    from collaboration.editing import get_editor
+    COLLABORATION_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Collaboration modules not available: {e}")
+    collaboration_manager = None
+    get_editor = None
+    COLLABORATION_AVAILABLE = False
 from models import (
     ImageGenerationRequest, ImageEditRequest, ImageVariationsRequest, ImageAnalysisRequest,
     VideoGenerationRequest, ChartGenerationRequest, SpotifyPlaylistCreateRequest, SmartPlaylistRequest,
