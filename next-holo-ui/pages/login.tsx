@@ -18,8 +18,23 @@ export default function Login() {
     setLoading(true);
 
     try {
-      console.log("Attempting login with email:", email);
-      await login(email, password, rememberMe);
+      // Get values from form inputs directly (in case browser automation bypasses React state)
+      const form = e.currentTarget as HTMLFormElement;
+      const emailInput = form.querySelector<HTMLInputElement>('input[type="email"]');
+      const passwordInput = form.querySelector<HTMLInputElement>('input[type="password"]');
+      const rememberMeCheckbox = form.querySelector<HTMLInputElement>('input[type="checkbox"]');
+      
+      const actualEmail = emailInput?.value || email;
+      const actualPassword = passwordInput?.value || password;
+      const actualRememberMe = rememberMeCheckbox?.checked || rememberMe;
+      
+      // Update state if values differ (for controlled components)
+      if (actualEmail !== email) setEmail(actualEmail);
+      if (actualPassword !== password) setPassword(actualPassword);
+      if (actualRememberMe !== rememberMe) setRememberMe(actualRememberMe);
+      
+      console.log("Attempting login with email:", actualEmail);
+      await login(actualEmail, actualPassword, actualRememberMe);
       console.log("Login successful, redirecting...");
       // Redirect to home page after successful login
       router.push("/");
