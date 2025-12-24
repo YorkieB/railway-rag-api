@@ -14,7 +14,12 @@ const nextConfig = {
       {
         source: '/login',
         destination: '/',
-        permanent: true,
+        permanent: false,
+      },
+      {
+        source: '/login/:path*',
+        destination: '/',
+        permanent: false,
       },
     ];
   },
