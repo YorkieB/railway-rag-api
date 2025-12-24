@@ -26,15 +26,18 @@ import { AudioLiveSession } from "@/components/AudioLiveSession";
 import { VideoLiveSession } from "@/components/VideoLiveSession";
 import { Sidebar, type PanelId } from "@/components/Sidebar";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { apiBaseFromEnv, companionApiBaseFromEnv, queryApi, uploadDocument, speakWithElevenLabs } from "@/lib/api";
+import { apiBaseFromEnv, queryApi, uploadDocument, speakWithElevenLabs } from "@/lib/api";
 import { diagnostics } from "@/lib/diagnostics";
 import { Artifact, Message } from "@/types";
 
 const defaultApi = apiBaseFromEnv();
 const defaultVoice = "6twLzp3s6IkvvMSxk3oD";
 
+function newId() {
+  return Math.random().toString(36).slice(2);
+}
+
 export default function Home() {
-  // Authentication removed - app is publicly accessible
   const [apiBaseStored, setApiBaseStored, apiReady] = useLocalStorage("holo-api-base", defaultApi);
   const [geminiKey, setGeminiKey] = useLocalStorage("holo-gemini-key", "");
   const [elevenKey, setElevenKey] = useLocalStorage("holo-eleven-key", "");
@@ -77,9 +80,9 @@ export default function Home() {
     setSending(true);
     try {
       const res = await queryApi(apiBase, text, {
-        user_id: "default", // TODO: Get from auth/session
-        project_id: undefined, // TODO: Get from project selector
-        private_session: false // TODO: Get from settings
+        user_id: "default",
+        project_id: undefined,
+        private_session: false
       });
       const assistantMsg: Message = {
         id: newId(),
@@ -98,9 +101,8 @@ export default function Home() {
         try {
           const url = await speakWithElevenLabs(res.answer, elevenKey, elevenVoice);
           setAudioUrl(url);
-          // Reset speaking state after audio duration estimate (rough estimate: 150 words per minute)
           const wordCount = res.answer.split(/\s+/).length;
-          const estimatedDuration = (wordCount / 150) * 60 * 1000; // milliseconds
+          const estimatedDuration = (wordCount / 150) * 60 * 1000;
           setTimeout(() => {
             setIsSpeaking(false);
             setSpeakingText("");
@@ -157,7 +159,6 @@ export default function Home() {
   };
 
   useEffect(() => {
-    // simple health check
     const check = async () => {
       try {
         const res = await fetch(`${apiBase}/health`);
@@ -175,7 +176,7 @@ export default function Home() {
       }
     };
     check();
-    const interval = setInterval(check, 30000); // Check every 30 seconds
+    const interval = setInterval(check, 30000);
     return () => clearInterval(interval);
   }, [apiBase]);
 
@@ -246,8 +247,6 @@ export default function Home() {
     }
   };
 
-  // No authentication required - show page immediately
-
   return (
     <>
       <Head>
@@ -290,8 +289,3 @@ export default function Home() {
     </>
   );
 }
-
-function newId() {
-  return Math.random().toString(36).slice(2);
-}
-
