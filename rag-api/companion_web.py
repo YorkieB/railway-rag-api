@@ -313,12 +313,37 @@ class WebCompanion:
         
         # Event handlers
         def on_message(result, **kwargs):
-            sentence = result.channel.alternatives[0].transcript if result.channel.alternatives else ""
-            if len(sentence) == 0:
+            print(f"[WebCompanion] Deepgram on_message called with result: {result}, type: {type(result)}")
+            try:
+                # Handle different result structures (v3.x vs v5.x)
+                if hasattr(result, 'channel') and result.channel:
+                    sentence = result.channel.alternatives[0].transcript if result.channel.alternatives else ""
+                    is_final = getattr(result, 'is_final', False)
+                elif hasattr(result, 'alternatives') and result.alternatives:
+                    sentence = result.alternatives[0].transcript if result.alternatives else ""
+                    is_final = getattr(result, 'is_final', False)
+                elif isinstance(result, dict):
+                    sentence = result.get("channel", {}).get("alternatives", [{}])[0].get("transcript", "")
+                    is_final = result.get("is_final", False)
+                else:
+                    # Try to access attributes directly
+                    sentence = getattr(result, 'transcript', '') or getattr(result, 'sentence', '')
+                    is_final = getattr(result, 'is_final', False)
+                    print(f"[WebCompanion] Using fallback extraction: sentence='{sentence}', is_final={is_final}")
+                
+                print(f"[WebCompanion] Extracted transcript: '{sentence}' (is_final={is_final})")
+                
+                if len(sentence) == 0:
+                    print(f"[WebCompanion] Empty transcript, skipping")
+                    return
+            except Exception as e:
+                print(f"[WebCompanion] Error extracting transcript from result: {e}")
+                import traceback
+                traceback.print_exc()
                 return
             
             # Interruption detection
-            if result.is_final is False and len(sentence) > 5:
+            if not is_final and len(sentence) > 5:
                 if self.is_speaking:
                     if self.current_playback_task and not self.current_playback_task.done():
                         self.current_playback_task.cancel()
@@ -336,7 +361,8 @@ class WebCompanion:
                         except:
                             pass
             
-            if result.is_final:
+            if is_final:
+                print(f"[WebCompanion] Final transcript received: '{sentence}' - queuing for processing")
                 if COLORAMA_AVAILABLE:
                     print(Fore.CYAN + f"You: {sentence}")
                 else:
@@ -351,13 +377,16 @@ class WebCompanion:
                 try:
                     loop = asyncio.get_event_loop()
                     if loop.is_running():
+                        print(f"[WebCompanion] Queueing transcript in running event loop")
                         asyncio.run_coroutine_threadsafe(
                             self.transcript_queue.put(sentence),
                             loop
                         )
                     else:
+                        print(f"[WebCompanion] Queueing transcript in new event loop")
                         loop.run_until_complete(self.transcript_queue.put(sentence))
-                except RuntimeError:
+                except RuntimeError as e:
+                    print(f"[WebCompanion] RuntimeError queueing transcript: {e}")
                     # No event loop, create one
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
@@ -365,6 +394,7 @@ class WebCompanion:
                         self.transcript_queue.put(sentence),
                         loop
                     )
+                print(f"[WebCompanion] Transcript queued successfully")
         
         def on_speech_started(speech_started, **kwargs):
             """
@@ -444,14 +474,16 @@ class WebCompanion:
     
     def process_audio_chunk(self, audio_bytes: bytes):
         """Process audio chunk from browser and send to Deepgram (synchronous)."""
+        print(f"[WebCompanion] Received audio chunk: {len(audio_bytes)} bytes")
         if self.dg_connection:
             try:
+                print(f"[WebCompanion] Sending audio to Deepgram connection: {self.dg_connection}")
                 self.dg_connection.send(audio_bytes)
+                print(f"[WebCompanion] Audio chunk sent successfully to Deepgram")
             except Exception as e:
-                if COLORAMA_AVAILABLE:
-                    print(Fore.RED + f"Error sending audio to Deepgram: {e}")
-                else:
-                    print(f"Error sending audio to Deepgram: {e}")
+                print(f"[WebCompanion] Error sending audio to Deepgram: {e}")
+                import traceback
+                traceback.print_exc()
                 # Try to send error to browser if websocket available
                 if self.websocket:
                     try:
@@ -466,18 +498,19 @@ class WebCompanion:
                             )
                     except:
                         pass
+        else:
+            print(f"[WebCompanion] WARNING: dg_connection is None! Cannot send audio.")
     
     async def start_processing_loop(self):
         """Start the main processing loop for transcripts."""
-        if COLORAMA_AVAILABLE:
-            print(Fore.GREEN + "Starting processing loop...")
-        else:
-            print("Starting processing loop...")
+        print("[WebCompanion] Starting processing loop...")
         
         while True:
             try:
                 # Wait for transcript
+                print(f"[WebCompanion] Waiting for transcript from queue (queue size: {self.transcript_queue.qsize()})...")
                 user_text = await self.transcript_queue.get()
+                print(f"[WebCompanion] Received transcript from queue: '{user_text}' - starting generate_and_speak")
                 
                 # Handle interruption
                 if self.current_playback_task and not self.current_playback_task.done():

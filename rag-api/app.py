@@ -3873,16 +3873,22 @@ async def companion_websocket(websocket: WebSocket, session_id: str):
                     audio_data = data.get("audio", "")
                     if audio_data:
                         try:
+                            print(f"[Companion WebSocket] Received audio_chunk message, data length: {len(audio_data)}")
                             # Decode base64 audio (Int16 PCM format)
                             audio_bytes = base64.b64decode(audio_data)
+                            print(f"[Companion WebSocket] Decoded audio chunk: {len(audio_bytes)} bytes")
                             # Process audio chunk (send to Deepgram)
                             companion.process_audio_chunk(audio_bytes)
                         except Exception as e:
-                            print(f"Error processing audio chunk: {e}")
+                            print(f"[Companion WebSocket] Error processing audio chunk: {e}")
+                            import traceback
+                            traceback.print_exc()
                             await websocket.send_json({
                                 "type": "error",
                                 "message": f"Audio processing error: {str(e)}"
                             })
+                    else:
+                        print(f"[Companion WebSocket] Received audio_chunk message but audio_data is empty")
                 
                 elif msg_type == "text_input":
                     # Browser sent text input directly
