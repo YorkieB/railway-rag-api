@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jarvis-api
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - USE_FIRESTORE_SESSIONS=${USE_FIRESTORE_SESSIONS:-false}
+      - USE_BIGQUERY_MEMORY=${USE_BIGQUERY_MEMORY:-false}
+      - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_ENABLED=${REDIS_ENABLED:-false}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+    volumes:
+      - ./rag_db:/app/rag_db
+      - ./logs:/app/logs
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - jarvis-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: jarvis-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    networks:
+      - jarvis-network
+
+  # Optional: Add PostgreSQL for future use
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: jarvis-postgres
+  #   environment:
+  #     - POSTGRES_DB=jarvis
+  #     - POSTGRES_USER=jarvis
+  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+  #   volumes:
+  #     - postgres-data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+  #   networks:
+  #     - jarvis-network
+
+volumes:
+  redis-data:
+  # postgres-data:
+
+networks:
+  jarvis-network:
+    driver: bridge
+

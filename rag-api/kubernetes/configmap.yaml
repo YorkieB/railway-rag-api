@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jarvis-config
+data:
+  gcp-project: "your-gcp-project-id"
+  cors-origins: "https://yourdomain.com"
+  cache-ttl: "300"
+  rate-limit-enabled: "true"
+
